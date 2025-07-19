@@ -85,12 +85,14 @@ The UberGROM board consists of the following major components:
 
 ## Jumper Settings
 
-- **JP1 and JP3:** Jumper pins 1–2 to enable cartridge
-- **JP4:** (optional) Write protect — not implemented
-- **JP5:** Serial programming or communication
-- **JP6:** GPIO/SPI breakout
-- **JP7:** Optional analog inputs
-- **JP8:** Reset enable — must be jumpered to boot
+| Jumper                                          |  Notes                                               |
+|-------------------------------------------------|-----------------------------------------------------|
+| **JP1 and JP3:**                                |       Pins 1-2 must be jumpered to enable cartridge |
+| **JP4:** (optional) Write protect               |       Not implemented                               |
+| **JP5:** Serial programming or communication     |      Three pin header (RX/TX/GND)                  |
+| **JP6:** GPIO/SPI breakout                       |      Use for your own use case                     |
+| **JP7:** Optional analog inputs                  |      Use for your own use case                     |
+| **JP8:** Reset enable — must be jumpered to boot |      Two pins must be jumped                       |
 
 ## Flashing Firmware
 
