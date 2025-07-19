@@ -73,8 +73,8 @@ The UberGROM board consists of the following major components:
 | U3     | ATmega1284P                  | DIP40       | Socketed, 128KB flash, 4KB EEPROM |
 | C1     | 1nF Capacitor                 | Through-hole| Optional, omit if GROM is unstable |
 | C2–C5  | 0.1μF Capacitors              | Through-hole| Decoupling                      |
-| R1     | 68Ω Resistor                  | Through-hole|                                 |
-| R2     | 2.2kΩ Resistor                | Through-hole|                                 |
+| R1     | 68Ω Resistor                  | Through-hole| Reset resistor                  |
+| R2     | 2.2kΩ Resistor                | Through-hole| Resistor for 1284P              |
 | JP1    | 3-pin Header                  | Through-hole| Cartridge enable (1–2 jumpered) |
 | JP3    | 3-pin Header                  | Through-hole| Same function as JP1           |
 | JP4    | 2-pin Header                  | Through-hole | Write protect (not used)       |
