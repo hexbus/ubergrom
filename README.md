@@ -81,6 +81,16 @@ The UberGROM supports memory-mapped access to various internal and external devi
 
 Each GROM slot may map one device. Devices may be paged using the second nibble of the configuration.
 
+## ATmega1284P Memory Map
+
+| Region         | Size     | Address Range    | Purpose                      |
+|----------------|----------|------------------|-------------------------------|
+| Flash Program  | 128KB    | `0x0000–0x1FFFF` | Main code and GROM content    |
+| Bootloader     | 4KB      | `0x20000–0x20FFF`| Optional AVR bootloader       |
+|                |          |                  | (sometimes begins before 0x20000)|
+| SRAM           | 16KB     | `0x0100–0x40FF`  | RAM usage (8K + 7K bank)      |
+| EEPROM         | 4KB      | Mapped in GROM   | Config and persistent storage |
+
 ## Bill of Materials (BOM)
 
 | RefDes | Part                          | Package     | Notes                          |
@@ -126,20 +136,22 @@ See:
 - [UberGROM Programming - Start here!](https://forums.atariage.com/topic/305712-the-mega-ubergrom-thread-start-here/)
 - [Tursi's GROMCFG Primer](https://youtu.be/KgBOirVyC0Q)
 
-## Putting UberGROM software on a blank 1284P
+## Installing/Reinstalling UberGROM microcode on a blank/new 1284P
 
 To program the ATmega1284P:
 
 1. Connect a programmer (such as USBasp, AVRISP mkII, or ArduinoISP)
-2. Set fuses for internal 8MHz oscillator, no clock divide:
+2. Erase the 1284P (if necessary)
+3. Set fuses for internal 8MHz oscillator, no clock divide:
    - `Low Fuse:` `0xE2`
    - `High Fuse:` `0xD9`
    - `Extended Fuse:` `0xFF`
-3. Use `avrdude` to program the UberGROM program from Tursi's repo [here](https://github.com/tursilion/ubergrom) - use these fuse settings:
+4. Disable power brownout/blackout if your programmer has this option.
+5. Use `avrdude` to program the UberGROM program from Tursi's repo [here](https://github.com/tursilion/ubergrom) - use these fuse settings:
 ```bash
 avrdude -c usbasp -p m1284p -U lfuse:w:0xE2:m -U hfuse:w:0xD9:m -U efuse:w:0xFF:m
 ```
-4. Flash firmware:
+6. Flash firmware:
 ```bash
 avrdude -c usbasp -p m1284p -U flash:w:ubergrom.hex:i
 ```
@@ -150,6 +162,7 @@ avrdude -c usbasp -p m1284p -U flash:w:ubergrom.hex:i
 - User data for GROMs starts after address `>0000` and is mapped in 8K slots.
 - The 39SF040 PLCC Flash supports up to 512K of ROM.  A good 512K ROM using the 74LS378 switching method to test the ROM functionality with is the [Don't Mess with Texas](https://github.com/Rasmus-M/ti99demo) megademo.
 - **ROM bank switching** is performed by writing to a paging register in the ROM’s address space.  See [Stuart Conner's article](http://www.stuartconner.me.uk/ti/ti.htm#bank_switching) for an overview.  Stuart's example uses the legacy **74LS379** (banks switch top → bottom), while the current standard is the **74LS378** (banks switch bottom → top). MAME refers to these as `.9` (74LS379) and `.8` (74LS378).
+- To install GROM software onto your UberGROM after the base `ubergrom.hex` is there, load `GROMCFG` by holding down `SPACE` while powering up your TI-99 with the UberGROM plugged in.  You should have a menu option to run a PROGRAM file.  Go ahead and run `GROMCFG` from mass storage.  Follow this tutorial to load the GROMs: - [Tursi's GROMCFG Primer](https://youtu.be/KgBOirVyC0Q)
 
 ## Understanding Bases, Slots, and Pages
 
@@ -177,18 +190,6 @@ Write 0x5A → >FFFF
   - `0x01`: Enable multiple GROM bases
   - `0x02`: Disable recovery loader
   - `0x04`: Allow rollover past 8K boundary
-
-## ATmega1284P Memory Map
-
-| Region         | Size     | Address Range    | Purpose                      |
-|----------------|----------|------------------|-------------------------------|
-| Flash Program  | 128KB    | `0x0000–0x1FFFF` | Main code and GROM content    |
-| Bootloader     | 4KB      | `0x20000–0x20FFF`| Optional AVR bootloader       |
-|                |          |                  | (sometimes begins before 0x20000)|
-| SRAM           | 16KB     | `0x0100–0x40FF`  | RAM usage (8K + 7K bank)      |
-| EEPROM         | 4KB      | Mapped in GROM   | Config and persistent storage |
-
-
 
 ## Serial I/O & Bluetooth
 
