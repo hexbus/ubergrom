@@ -4,6 +4,8 @@
 
 A powerful 512K ROM/GROM multi-bank cartridge with an onboard ATmega1284P microcontroller and flexible I/O expansion for TI-99/4A development, testing, and gameplay.
 
+![IMG_3367](https://github.com/user-attachments/assets/81efbad9-1caf-4bbf-b794-7bbb3c35c5da)
+![IMG_3368](https://github.com/user-attachments/assets/ae26573b-c1d6-400a-9539-089aa93326dd)
 ---
 
 ## 📋 Table of Contents
