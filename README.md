@@ -75,24 +75,25 @@ The UberGROM board consists of the following major components:
 | C2–C5  | 0.1μF Capacitors              | Through-hole| Decoupling                      |
 | R1     | 68Ω Resistor                  | Through-hole|                                 |
 | R2     | 2.2kΩ Resistor                | Through-hole|                                 |
-| JP1    | 3-pin Header                  |             | Cartridge enable (1–2 jumpered) |
-| JP3    | 3-pin Header                  |             | Same function as JP1           |
-| JP4    | 2-pin Header                  |             | Write protect (not used)       |
-| JP5    | 3-pin Header                  |             | Serial interface                |
-| JP6    | 8-pin Header                  |             | GPIO / Programming / SPI       |
-| JP7    | 5-pin Header                  |             | Analog inputs                   |
-| JP8    | 2-pin Header                  |             | Reset (must be jumpered)       |
+| JP1    | 3-pin Header                  | Through-hole| Cartridge enable (1–2 jumpered) |
+| JP3    | 3-pin Header                  | Through-hole| Same function as JP1           |
+| JP4    | 2-pin Header                  | Through-hole | Write protect (not used)       |
+| JP5    | 3-pin Header                  | Through-hole | Serial interface                |
+| JP6    | 8-pin Header                  | Through-hole| GPIO / Programming / SPI       |
+| JP7    | 5-pin Header                  | Through-hole| Analog inputs                   |
+| JP8    | 2-pin Header                  | Through-hole | Reset (must be jumpered)       |
 
 ## Jumper Settings
 
 | Jumper                                          |  Notes                                               |
 |-------------------------------------------------|-----------------------------------------------------|
-| **JP1 and JP3:**                                |       Pins 1-2 must be jumpered to enable cartridge |
+| **JP1:** Cartridge Enable                       |       Pins 1-2 must be jumpered to enable cartridge |
+| **JP3** Cartridge Enable                        |       Pins 1-2 must be jumpered to enable cartridge |
 | **JP4:** (optional) Write protect               |       Not implemented                               |
 | **JP5:** Serial programming or communication     |      Three pin header (RX/TX/GND)                  |
 | **JP6:** GPIO/SPI breakout                       |      Use for your own use case                     |
 | **JP7:** Optional analog inputs                  |      Use for your own use case                     |
-| **JP8:** Reset enable — must be jumpered to boot |      Two pins must be jumped                       |
+| **JP8:** Reset enable — must be jumpered to boot |      Pins 1-2 must be jumpered so cart resets console|
 
 ## Flashing Firmware
 
