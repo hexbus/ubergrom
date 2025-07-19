@@ -64,6 +64,23 @@ The UberGROM board consists of the following major components:
 - **JP7:** ADC header (5-pin for DC0–DC3 analog lines)
 - **JP8:** Reset header (2-pin, must be jumpered for boot)
 
+## Supported Devices
+
+The UberGROM supports memory-mapped access to various internal and external devices:
+
+| Type ID | Device   | Access Type    | Pageable? |
+|---------|----------|----------------|-----------|
+| 0       | RAM      | R/W            | Yes       |
+| 1       | GROM     | Read-only      | Yes       |
+| 2       | EEPROM   | R/W            | No        |
+| 3       | GPIO     | R/W Peripheral | No        |
+| 4       | ADC      | Read-only      | Yes       |
+| 5       | UART     | R/W Peripheral | No        |
+| 6       | FlashCtl | R/W Peripheral | No        |
+| 7       | Timer    | Read-only      | No        |
+
+Each GROM slot may map one device. Devices may be paged using the second nibble of the configuration.
+
 ## Bill of Materials (BOM)
 
 | RefDes | Part                          | Package     | Notes                          |
@@ -95,7 +112,21 @@ The UberGROM board consists of the following major components:
 | **JP7:** Optional analog inputs                  |      Use for your own use case                     |
 | **JP8:** Reset enable — must be jumpered to boot |      Pins 1-2 must be jumpered so cart resets console|
 
-## Flashing Firmware
+## ROM and GROM Primer
+
+TI-99/4A cartridges historically use:
+
+- **ROMs**: For CPU code, accessed via address decoding
+- **GROMs**: For GPL programs, data, or menus — accessed via TI’s proprietary auto-increment GROM port
+
+See:
+- [TI ROMs and decoding](https://www.unige.ch/medecine/nouspikel/ti99/roms.htm) and [here](http://www.stuartconner.me.uk/ti/ti.htm#bank_switching)
+- [TI GROM overview](https://www.unige.ch/medecine/nouspikel/ti99/groms.htm)
+- [GPL Reference](https://www.unige.ch/medecine/nouspikel/ti99/gpl.htm)
+- [UberGROM Programming - Start here!](https://forums.atariage.com/topic/305712-the-mega-ubergrom-thread-start-here/)
+- [Tursi's GROMCFG Primer](https://youtu.be/KgBOirVyC0Q)
+
+## Putting UberGROM software on a blank 1284P
 
 To program the ATmega1284P:
 
@@ -104,7 +135,7 @@ To program the ATmega1284P:
    - `Low Fuse:` `0xE2`
    - `High Fuse:` `0xD9`
    - `Extended Fuse:` `0xFF`
-3. Use `avrdude`:
+3. Use `avrdude` to program the UberGROM program from Tursi's repo [here](https://github.com/tursilion/ubergrom) - use these fuse settings:
 ```bash
 avrdude -c usbasp -p m1284p -U lfuse:w:0xE2:m -U hfuse:w:0xD9:m -U efuse:w:0xFF:m
 ```
@@ -113,15 +144,25 @@ avrdude -c usbasp -p m1284p -U lfuse:w:0xE2:m -U hfuse:w:0xD9:m -U efuse:w:0xFF:
 avrdude -c usbasp -p m1284p -U flash:w:ubergrom.hex:i
 ```
 
-## Programming the GROMs/ROMs
+## Adding software to the UberGROM (1284P) and ROM
 
-- The `ubergrom.hex` firmware image includes Tursi’s bootloader at the top 4K of memory.
+- The `ubergrom.hex` firmware image includes Tursi’s bootloader at the top 4K of memory - will be there if flashed successfully.
 - User data for GROMs starts after address `>0000` and is mapped in 8K slots.
-- The 39SF040 PLCC Flash supports up to 512K of ROM.
-- ROM bank switching uses writes to a paging register — typically done by writing to the ROM’s own address space.  See [Stuart Conner's article](http://www.stuartconner.me.uk/ti/ti.htm#bank_switching) on 74LS379 bank switching.
-- Note: For ROMs, the 74LS378 switches 8K banks forward (bottom → top) and is the current standard. The 74LS379 switches banks in reverse (top → bottom) and is legacy. MAME refers to these as .8 (74LS378) and .9 (74LS379).
+- The 39SF040 PLCC Flash supports up to 512K of ROM.  A good 512K ROM using the 74LS378 switching method to test the ROM functionality with is the [Don't Mess with Texas](https://github.com/Rasmus-M/ti99demo) megademo.
+- **ROM bank switching** is performed by writing to a paging register in the ROM’s address space.  See [Stuart Conner's article](http://www.stuartconner.me.uk/ti/ti.htm#bank_switching) for an overview.  Stuart's example uses the legacy **74LS379** (banks switch top → bottom), while the current standard is the **74LS378** (banks switch bottom → top). MAME refers to these as `.9` (74LS379) and `.8` (74LS378).
 
-## EEPROM Usage
+## Understanding Bases, Slots, and Pages
+
+- **Base:** A GROM “base” is a CPU-side address block. Each base accesses a unique 64K GROM space.
+  - Base 0: `>9800`, Base 1: `>9804`, etc. up to Base 15
+
+- **Slot:** An 8K chunk within a base. TI GROMs have 8K slots: `>6000`, `>8000`, `>A000`, etc.
+
+- **Page:** A segment of memory within a device mapped to a slot. For example, GROM Page 2 = bytes `>10000–>11FFF`.
+
+- Up to 16 bases × 6 usable slots per base = 96 GROM segments total (768KB).
+
+## EEPROM Usage for developers
 
 - 4KB EEPROM (within ATmega1284P)
 - EEPROM space is memory-mapped and write-protected by default
@@ -147,47 +188,7 @@ Write 0x5A → >FFFF
 | SRAM           | 16KB     | `0x0100–0x40FF`  | RAM usage (8K + 7K bank)      |
 | EEPROM         | 4KB      | Mapped in GROM   | Config and persistent storage |
 
-## Supported Devices
 
-The UberGROM supports memory-mapped access to various internal and external devices:
-
-| Type ID | Device   | Access Type    | Pageable? |
-|---------|----------|----------------|-----------|
-| 0       | RAM      | R/W            | Yes       |
-| 1       | GROM     | Read-only      | Yes       |
-| 2       | EEPROM   | R/W            | No        |
-| 3       | GPIO     | R/W Peripheral | No        |
-| 4       | ADC      | Read-only      | Yes       |
-| 5       | UART     | R/W Peripheral | No        |
-| 6       | FlashCtl | R/W Peripheral | No        |
-| 7       | Timer    | Read-only      | No        |
-
-Each GROM slot may map one device. Devices may be paged using the second nibble of the configuration.
-
-## Understanding Bases, Slots, and Pages
-
-- **Base:** A GROM “base” is a CPU-side address block. Each base accesses a unique 64K GROM space.
-  - Base 0: `>9800`, Base 1: `>9804`, etc. up to Base 15
-
-- **Slot:** An 8K chunk within a base. TI GROMs have 8K slots: `>6000`, `>8000`, `>A000`, etc.
-
-- **Page:** A segment of memory within a device mapped to a slot. For example, GROM Page 2 = bytes `>10000–>11FFF`.
-
-- Up to 16 bases × 6 usable slots per base = 96 GROM segments total (768KB).
-
-## ROM and GROM Primer
-
-TI-99/4A cartridges historically use:
-
-- **ROMs**: For CPU code, accessed via address decoding
-- **GROMs**: For GPL programs, data, or menus — accessed via TI’s proprietary auto-increment GROM port
-
-See:
-- [TI ROMs and decoding](https://www.unige.ch/medecine/nouspikel/ti99/roms.htm) and [here](http://www.stuartconner.me.uk/ti/ti.htm#bank_switching)
-- [TI GROM overview](https://www.unige.ch/medecine/nouspikel/ti99/groms.htm)
-- [GPL Reference](https://www.unige.ch/medecine/nouspikel/ti99/gpl.htm)
-- [UberGROM Programming - Start here!](https://forums.atariage.com/topic/305712-the-mega-ubergrom-thread-start-here/)
-- [Tursi's GROMCFG Primer](https://youtu.be/KgBOirVyC0Q)
 
 ## Serial I/O & Bluetooth
 
@@ -205,13 +206,6 @@ Example use cases:
 - Potentiometers or dials
 - Light sensors
 - Analog joystick support
-
-## Compatible Software
-
-- Any GROM-based or ROM-based software
-- Tursi’s UberGROM loader
-- EasyBug for recovery (bootloader)
-- Custom utilities written in GPL or assembly
 
 ## Troubleshooting
 
