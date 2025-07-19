@@ -143,6 +143,7 @@ Write 0x5A → >FFFF
 |----------------|----------|------------------|-------------------------------|
 | Flash Program  | 128KB    | `0x0000–0x1FFFF` | Main code and GROM content    |
 | Bootloader     | 4KB      | `0x20000–0x20FFF`| Optional AVR bootloader       |
+|                |          |                  | (sometimes begins before 0x20000)|
 | SRAM           | 16KB     | `0x0100–0x40FF`  | RAM usage (8K + 7K bank)      |
 | EEPROM         | 4KB      | Mapped in GROM   | Config and persistent storage |
 
