@@ -1,6 +1,7 @@
 # UberGROM Cartridge Reference
 
-> **Technical draft for review.** This documentation is being rebuilt from the original board manual, the [GROMSim](https://github.com/tursilion/ubergrom) source and documentation, the [AtariAge development threads](https://github.com/hexbus/ubergrom/blob/main/README.md#primary-project-sources), the board schematic, and working cartridge practice. Items that are not yet reconciled are isolated in [`docs/VALIDATION-LEDGER.md`](docs/VALIDATION-LEDGER.md) rather than presented as settled fact.
+> **Technical draft for review.** This documentation is being rebuilt from the original board manual, the [GROMSim](https://github.com/tursilion/ubergrom) source and documentation, the AtariAge development
+[threads](https://github.com/hexbus/ubergrom/blob/main/README.md#primary-project-sources) , the board schematic, and working cartridge practice. Items that are not yet reconciled are isolated in [`docs/VALIDATION-LEDGER.md`](docs/VALIDATION-LEDGER.md) rather than presented as settled fact.
 
 ![IMG_3367](https://github.com/user-attachments/assets/81efbad9-1caf-4bbf-b794-7bbb3c35c5da)
 ![IMG_3368](https://github.com/user-attachments/assets/ae26573b-c1d6-400a-9539-089aa93326dd)
