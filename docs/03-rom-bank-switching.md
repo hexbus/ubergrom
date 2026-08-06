@@ -71,7 +71,7 @@ INSTALL_BANKRAM
        B    @BANKRAM
 ```
 
-**Review the opcodes with the assembler used by the project.** A safer build-system practice is to assemble the trampoline as normal code, copy its assembled words to scratchpad, and avoid hand-maintained opcode constants.
+**Review the opcodes with the assembler used by the project.** A safer build-system practice is to assemble the trampoline as normal code, copy its assembled words to scratchpad, and avoid hand-maintained opcode constants.  Keep track of your registers for your trampoline, including any where you expect return values, and ensure you are not stepping upon system registers.
 
 An alternative trampoline can generate a direct `CLR @xxxx` followed by `B @xxxx`, as shown in the older multi-bank tutorial. That approach consumes more scratchpad words but avoids register-indirect execution.
 
