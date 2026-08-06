@@ -72,3 +72,7 @@ On this UberGROM board, the written data value is immaterial: the write address 
 - Multi-bank ROM discussion: https://forums.atariage.com/topic/350614-rom-cartridge-with-multiple-banks/
 - Banked-cartridge conventions: https://forums.atariage.com/topic/364796-code-conventions-for-bank-switched-cartridges/
 - Bank image construction help: https://forums.atariage.com/topic/326457-bank-switch-cartridge-files-help/
+
+## Credits
+
+- UberGROM is (c) 2014 Mike Brent, Jon Guidry, and James Fetzner, but offered to the TI community as hardware for open development
