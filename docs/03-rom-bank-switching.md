@@ -162,4 +162,4 @@ Keep exported entry points in a generated symbol table or linker output. Rebuild
 
 ## Inverted-image warning
 
-Older 74LS379 cartridge boards invert the bank outputs. Their physical 8 KiB order may be the reverse of this board. Converting an inverted image to this non-inverted board requires reversing the order of its 8 KiB segments—not reversing bytes or bits inside each segment.
+Older 74LS379 (Guidry) 64K/128K cartridge boards invert the bank outputs. These are still in wide use. Their physical 8 KiB order may be the reverse of this board. Converting an inverted image to this non-inverted board requires reversing the order of its 8 KiB segments—not reversing bytes or bits inside each segment.  There's an invert utility available in this repository in case you need to invert a cartridge images.
