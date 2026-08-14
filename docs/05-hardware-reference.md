@@ -66,9 +66,9 @@ JP3 is labeled **`U-2 OE`**. Use the PCB's documented default position for norma
 
 JP3 is not a second UberGROM enable or write-protect jumper.
 
-## JP4 — implemented UberGROM write protect
+## JP4 — UberGROM distribution lock
 
-JP4 is labeled **`U-3 Write Protect`** and is normally open.
+JP4 is labeled **`U-3 Write Protect`** and is normally open. It was specifically designed as a **distribution lock**: configure/test the cartridge with JP4 open, then close it on a finished cartridge when the GROM Flash and mapping should no longer be modifiable through the TI-side UberGROM interfaces.
 
 In Tursi's released firmware, closing JP4 grounds ATmega **PC7**. The firmware checks this input in two places:
 
@@ -93,16 +93,9 @@ With JP4 closed, persistent writes to:
 
 are rejected. This protects the mapping/configuration portion of EEPROM.
 
-### JP4 does not protect everything
+### Protection scope
 
-JP4 intentionally does **not** block:
-
-- RAM;
-- normal user EEPROM at `>0102` and above;
-- U2 external ROM;
-- direct rewriting of the ATmega by an external hardware programmer.
-
-This distinction is useful: a finished cartridge can lock its mapping/GROM Flash while still allowing software to save application data such as settings or high scores.
+JP4 protects the UberGROM GROM-Flash programming path and the low EEPROM mapping/configuration area. It intentionally leaves RAM and user EEPROM at `>0102` and above writable, so a distributed cartridge can still save settings, high scores, and other application data. JP4 is an ATmega/UberGROM-side control and is unrelated to U2.
 
 ### Practical use
 

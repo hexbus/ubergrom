@@ -85,3 +85,25 @@ Added Tursi's current `gromtest` directory as the executable reference for:
 Removed the “disposable development device only” characterization.
 
 FlashCtl is documented as suitable for configuration, tests, and infrequent updates, while warning against high-frequency storage because Flash writes are slow and erase endurance is finite.
+
+
+## Second Tursi review pass
+
+Additional changes made after the next designer review:
+
+- A complete blank-ATmega release must include EEPROM configuration as well as the 128 KiB Flash image. A 128 KiB Flash-only file is now described as an update artifact, not a complete cartridge image.
+- `FC/D8/C2` is now the recommended ATmega1284P fuse set for newly programmed boards because it enables approximately 4.3 V brown-out protection. `FF/D8/C2` remains documented as the known-working BOD-disabled setting used on existing boards.
+- JP4 wording is now consistently **distribution lock**; repeated discussion of unrelated external-programmer behavior was removed.
+- Removed references to unrelated mapper designs from the 512 KiB banking chapter.
+- Replaced “select address” terminology with **bank select**.
+- Replaced the earlier scratchpad example with the assembler-generated `TRAMP` routine copied to RAM with a loop.
+- Simplified the every-bank startup pattern: `CLR @>6000` is the first instruction at the common KICKSTART address so execution immediately continues from bank 0.
+- Added a GROM/GPL power-up-link strategy and kept the exact GPL source as a test-before-publish item.
+- Added an advanced note that unused cartridge-header fields can be repurposed when space is critical, while retaining a conventional header as the recommended example.
+- Changed unused ROM padding recommendation to `>FF`.
+- Rewrote cross-bank-symbol guidance so generated tables/relinking are optional build techniques, not hardware requirements.
+- Extended-feature tables now explicitly describe the ATmega1284P build.
+- Extended-feature examples now follow the current `gromtest` access patterns.
+- UART documentation now explains the 256-byte allocated buffers, effective ring-buffer capacity, and need for software/manual flow control at high rates.
+- Timer wording now notes the factory-calibrated internal RC oscillator is expected to be reasonably close to nominal.
+- EEPROM endurance is stated as approximately 100,000 cycles; Flash endurance as approximately 10,000 cycles.

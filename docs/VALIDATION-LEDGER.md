@@ -22,7 +22,7 @@ For the ATmega1284P board builds:
 - High `D8`
 - Low `C2`
 
-**Tursi's brown-out-protected example**
+**Recommended new-build setting — Tursi brown-out-protected example**
 
 - Extended `FC`
 - High `D8`
@@ -134,3 +134,28 @@ The ROM bank chapter now describes the GROM power-up link as a reliable way to e
 ## Still to reconcile: external U2 part list
 
 Historical material names 29F040/49F040 and some current text mentions 39SF040. Confirm exact pin/voltage/programmer compatibility for every device before publishing a blanket supported-parts list.
+
+
+## Resolved: complete ATmega release requires EEPROM configuration
+
+A 128 KiB Flash image alone is not a complete blank-device image because the intended UberGROM mappings are stored in EEPROM. Publish either a combined 132 KiB image or the 128 KiB Flash plus 4 KiB EEPROM pair. Flash-only images should be labeled as updates that depend on preserved/configured EEPROM contents.
+
+## Resolved: ROM padding
+
+Use `>FF` for unused ROM-bank/full-image padding. It matches the erased state of the Flash and avoids unnecessary programming of blank space.
+
+## Resolved: bank-transition example
+
+Use assembler-written `TRAMP: CLR *R1 / B *R2` copied to scratchpad with a normal loop. Do not hand-encode opcodes in the reference documentation.
+
+## Resolved: every-bank KICKSTART
+
+When every ROM bank contains a cartridge header, make the canonical bank write the first instruction at the common startup address. Once `CLR @>6000` executes, the following instruction is fetched from bank 0, minimizing duplicated startup code.
+
+## Still to test: exact GPL power-up-link source
+
+The design can use a GROM/GPL power-up link to perform the ROM bank select before ROM code depends on it. The conceptual bank-0 operation is a store to the `>6000` bank select. Assemble and test the exact GPL syntax before publishing it as a copy-and-paste example.
+
+## Resolved: endurance and UART notes
+
+For the ATmega1284P build, document approximately 100,000 EEPROM erase/write cycles and approximately 10,000 Flash erase/write cycles. The UART implementation allocates 256-byte RX/TX arrays; the circular-buffer implementation reserves one position for full/empty discrimination, and high-speed use requires application/manual flow control to avoid receive overruns.

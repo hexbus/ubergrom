@@ -34,18 +34,12 @@ The cartridge hardware was a collaborative project involving **James "Jim" Fetzn
 
 ## What files may be supplied with a cartridge
 
-A release can contain one or both of these hardware images:
+A complete release for programming a **blank ATmega1284P** must include both the ATmega Flash contents **and** the 4 KiB EEPROM configuration that tells UberGROM what is mapped where. Package those as either:
 
-| Image | Destination | Required when supplied? |
-|---|---|---|
-| ATmega1284P UberGROM image | U3 ATmega1284P | Yes |
-| 512 KiB ROM image | U2 external flash | Yes, if the cartridge uses ROM |
+- **one 132 KiB combined ATmega image** (128 KiB Flash + 4 KiB EEPROM), or
+- **two ATmega files**: 128 KiB Flash plus a separate 4 KiB EEPROM image.
 
-The ATmega image itself may be:
-
-- **128 KiB Flash-only**, or
-- **132 KiB combined Flash + EEPROM**, or
-- **128 KiB Flash plus a separate 4 KiB EEPROM image**.
+If the cartridge also uses the separate U2 ROM, include its ROM image as well. A 128 KiB ATmega Flash-only file is useful as an **update image** when an already-configured EEPROM is intentionally being preserved, but it is not a complete blank-chip release by itself.
 
 See [Burning prebuilt images](docs/01-burning-prebuilt-images.md) before programming a device.
 
@@ -85,7 +79,6 @@ On this board, **the data value written is immaterial**. The write address suppl
 
 The complete `>6000–>7FFF` window changes immediately. Code must therefore switch while executing from RAM or use an identical transition sequence at the same address in the source and destination banks.
 
-These rules are **not** universal to every TI mapper. In particular, the Gigacart uses a different scheme in which the value written also matters.
 
 ## Critical ROM startup rule
 

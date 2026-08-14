@@ -1,15 +1,18 @@
 # Example-program plan
 
-Reference-grade documentation requires buildable and testable examples, not isolated snippets.
+Reference-grade documentation should prefer buildable/testable examples over isolated snippets.
 
 Planned examples:
 
-1. `bank16k/` — two-bank ROM cartridge with identical headers and a RAM trampoline.
-2. `bank64k/` — eight-bank code/data example with generated cross-bank symbols.
-3. `uart-echo/` — UART at base 15 / slot `>A000`, 9600 8-N-1.
-4. `gpio-demo/` — configure input, pull-up, and output.
-5. `adc-meter/` — read one ADC page and display its 0–255 value.
-6. `timer-demo/` — measure an interval with wrap-safe subtraction.
-7. `eeprom-save/` — save a small record only when changed and verify with CRC.
+1. `bank16k/` — two-bank ROM cartridge showing the common startup-header pattern and a scratchpad RAM trampoline.
+2. `bank64k/` — eight-bank code/data example with explicitly tracked bank/address targets; generated equates may be added as an optional build convenience.
+3. `grom-powerup-bank0/` — tested GPL/GROM power-up link that establishes ROM bank 0 before ROM startup.
+4. `uart-echo/` — small annotated example derived from Tursi's `gromtest`, including buffer/status handling and application flow control.
+5. `gpio-demo/` — four-pin GPIO example derived from `gromtest`.
+6. `adc-meter/` — four-base ADC example derived from `gromtest`.
+7. `timer-demo/` — timer measurement example derived from `gromtest`.
+8. `eeprom-save/` — persistent user-EEPROM example that avoids unnecessary rewrites.
 
-Each directory should contain assembly source, build script, expected binary hashes, mapping worksheet, and test procedure.
+For UberGROM peripherals, Tursi's current `gromtest` remains the implementation reference. Any smaller examples added here should explain or adapt those access patterns rather than establish a competing interface.
+
+Each directory should contain source, build instructions, expected output/binary hash where practical, mapping notes, and a real-hardware test procedure.
