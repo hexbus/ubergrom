@@ -1,200 +1,281 @@
 # UberGROM extended features
 
-The ATmega firmware exposes devices through normal TI GROM accesses. A mapping byte contains:
+The UberGROM firmware exposes memory and peripherals through ordinary TI GROM reads and writes.
 
-- high nibble: device type;
-- low nibble: device page, where applicable.
+The firmware and reference test code are authored by Mike Brent/Tursi. The current upstream repository is:
 
-| ID | Mapping high nibble | Device | Pageable |
+- https://github.com/tursilion/ubergrom
+
+The `gromtest` directory is particularly valuable because it contains working TI-side tests for EEPROM, RAM, GPIO, ADC, UART, FlashCtl, and timer:
+
+- https://github.com/tursilion/ubergrom/tree/main/gromtest
+
+The examples in this chapter explain the interface. When there is any doubt about exact behavior, compare against the released source and `gromtest`.
+
+## Device mapping byte
+
+A mapping byte uses:
+
+- high nibble = device type;
+- low nibble = device page, when the device is pageable.
+
+| ID | High nibble | Device | Pageable |
 |---:|---:|---|---|
-| 0 | `>0` | RAM | Yes, two pages |
-| 1 | `>1` | GROM flash | Yes, fifteen pages |
+| 0 | `>0` | RAM | Yes |
+| 1 | `>1` | GROM Flash | Yes, 15 pages |
 | 2 | `>2` | EEPROM | No |
 | 3 | `>3` | GPIO | No |
-| 4 | `>4` | ADC | Yes, four channels/pages |
+| 4 | `>4` | ADC | Yes, 4 channels |
 | 5 | `>5` | UART | No |
 | 6 | `>6` | Flash controller | No |
 | 7 | `>7` | Timer | No |
 
-Example: mapping byte `>12` maps GROM page 2. Mapping byte `>50` maps the UART.
+Examples:
 
-Peripheral registers begin at offset `>0020` within a mapped slot so that they do not resemble a cartridge header at the start of a slot.
+```text
+>12 = GROM physical page 2
+>30 = GPIO
+>43 = ADC channel/page 3
+>50 = UART
+>60 = FlashCtl
+>70 = timer
+```
 
-## GROM port helpers in TMS9900 assembly
+Peripheral register blocks intentionally begin away from the start of the logical GROM slot so they do not resemble a cartridge header.
 
-The following examples use base 15:
+## The common programming pattern
+
+Tursi's test code demonstrates the core operation clearly:
+
+1. write the 16-bit GROM address through the chosen base's write-address port;
+2. read or write bytes through that base's data port.
+
+For base *n*:
+
+```text
+Read data     = >9800 + (n × 4)
+Read address  = >9802 + (n × 4)
+Write data    = >9C00 + (n × 4)
+Write address = >9C02 + (n × 4)
+```
+
+Most extended-feature examples differ mainly in the GROM address being accessed and the device mapped into that slot.
+
+## TMS9900 helper for base 15
 
 ```asm
-UGRD   EQU  >983C           ; read data
-UGRA   EQU  >983E           ; read address
-UGWD   EQU  >9C3C           ; write data
-UGWA   EQU  >9C3E           ; write address
+UGRD   EQU  >983C
+UGRA   EQU  >983E
+UGWD   EQU  >9C3C
+UGWA   EQU  >9C3E
 
-* R0 = GROM address. Destroys R1.
+* R0 = 16-bit GROM address. Destroys R1.
 SETGADDR
        MOV  R0,R1
-       MOVB R1,@UGWA        ; high byte
+       MOVB R1,@UGWA        ; high address byte
        SWPB R1
-       MOVB R1,@UGWA        ; low byte
+       MOVB R1,@UGWA        ; low address byte
        RT
 ```
 
-`MOVB` uses the high byte of a TMS9900 register. Preserve that convention when adapting the routines.
+Remember that `MOVB` uses the high byte of a TMS9900 register.
+
+## GPIO — four physical pins on this PCB
+
+The final cartridge PCB routes **four GPIO pins**. Tursi's `gromtest` likewise treats only the low four bits as valid.
+
+Map GPIO with `>30`.
+
+| Offset | Access | Meaning |
+|---:|---|---|
+| `>0020` | Write | direction: `0=input`, `1=output` |
+| `>0021–>1FFF` | Read/write | pin state; on input pins, written 1 enables pull-up |
+
+Bit assignment:
+
+```text
+bit 0 = GPIO0
+bit 1 = GPIO1
+bit 2 = GPIO2
+bit 3 = GPIO3
+```
+
+All four reset as inputs with pull-ups disabled.
+
+Tursi's test application repeatedly reads the GPIO state and displays the four low bits, and also exercises output behavior. That code should be treated as the first reference when building a hardware example.
+
+## ADC
+
+There are four analog input channels exposed on JP7.
+
+Map ADC pages with:
+
+```text
+>40 = ADC0
+>41 = ADC1
+>42 = ADC2
+>43 = ADC3
+```
+
+Reads from the mapped peripheral range trigger a conversion and return an 8-bit value:
+
+```text
+0   ≈ low end of input range
+255 ≈ high end of input range
+```
+
+The original implementation documentation gives approximately 104 µs per conversion and approximately 200 µs for the first conversion after power-up.
+
+`gromtest` contains a live ADC display example. Use it as the executable reference instead of inventing a separate register-access model.
 
 ## UART
 
-The community compatibility convention maps the UART at:
+JP5 exposes the ATmega UART at **5 V TTL logic levels**. It is not RS-232 voltage level.
+
+A commonly used mapping is UART at base 15, slot `>A000`:
 
 ```text
-base 15: CPU read-data port >983C
-slot >A000
-mapping byte >50
+base 15 read-data port = >983C
+slot                   = >A000
+mapping byte           = >50
 ```
 
-With that mapping, the UART registers are:
+Relative register map:
 
 | GROM address | Access | Meaning |
 |---:|---|---|
-| `>A020` | Read | Status |
+| `>A020` | Read | status |
 | `>A021` | Read/write | line format and 2× mode |
 | `>A022` | Read/write | baud divisor LSB |
-| `>A023` | Read/write | baud divisor MSB; writing commits divisor |
-| `>A024` | Read | bytes available in receive buffer |
-| `>A025` | Read | free bytes in transmit buffer |
+| `>A023` | Read/write | baud divisor MSB; commits divisor |
+| `>A024` | Read | bytes in receive buffer |
+| `>A025` | Read | free entries in transmit buffer |
 | `>A100–>AFFF` | Write | transmit-byte window |
 | `>B000–>BFFF` | Read | receive-byte window |
 
-### Status bits at `>A020`
+### Status bits
 
-| Bit | Mask | Meaning |
-|---:|---:|---|
-| 0 | `>01` | at least one receive byte available |
-| 1 | `>02` | room for at least one transmit byte |
-| 2 | `>04` | transmit buffer empty |
-| 4 | `>10` | frame error |
-| 5 | `>20` | receive overrun |
-| 6 | `>40` | parity error |
+| Mask | Meaning |
+|---:|---|
+| `>01` | receive byte available |
+| `>02` | room in transmit buffer |
+| `>04` | transmit buffer empty |
+| `>10` | frame error |
+| `>20` | receive overrun |
+| `>40` | parity error |
 
-### Line-format byte at `>A021`
+### Line format
 
-| Bits | Meaning |
-|---|---|
-| 0–1 | word length: `00=5`, `01=6`, `10=7`, `11=8` bits |
-| 2–3 | parity: `00/01=none`, `10=even`, `11=odd` |
-| 4 | `0=1` stop bit, `1=2` stop bits |
-| 5 | double-speed mode |
+At offset `>0021`:
 
-Thus 8-N-1 without double-speed is `>03`.
+- bits 0–1 = character length (`00=5`, `01=6`, `10=7`, `11=8`);
+- bits 2–3 = parity;
+- bit 4 = one/two stop bits;
+- bit 5 = double-speed mode.
+
+8-N-1 normal speed is `>03`.
 
 ### Baud divisor
 
 Normal mode:
 
 ```text
-UBRR = round_down(8,000,000 / (16 × baud) - 1)
+UBRR = floor(8,000,000 / (16 × baud) - 1)
 ```
 
 Double-speed mode:
 
 ```text
-UBRR = round_down(8,000,000 / (8 × baud) - 1)
+UBRR = floor(8,000,000 / (8 × baud) - 1)
 ```
 
-Write the LSB to `>A022` first, then the MSB to `>A023`. The firmware commits the new divisor when the MSB is written.
+Write the LSB first and MSB second. For 9600 bps in normal mode, UBRR is 51 (`>0033`).
 
-For 9600 bps in normal mode, `UBRR=51` (`>0033`).
-
-### Configure 9600 bps, 8-N-1
+### Minimal 9600 8-N-1 setup
 
 ```asm
-UARTCFG
        LI   R0,>A021
        BL   @SETGADDR
-       LI   R1,>0300        ; MOVB writes high byte: >03
+       LI   R1,>0300
        MOVB R1,@UGWD
 
        LI   R0,>A022
        BL   @SETGADDR
-       LI   R1,>3300        ; divisor LSB >33
-       MOVB R1,@UGWD
-       CLR  R1              ; divisor MSB >00; commits divisor
-       MOVB R1,@UGWD
-       RT
+       LI   R1,>3300
+       MOVB R1,@UGWD        ; divisor LSB
+       CLR  R1
+       MOVB R1,@UGWD        ; divisor MSB, applies new divisor
 ```
 
-### Send one byte
+For a production routine, check the buffer count/status before sending or receiving and provide a timeout.
 
-Input: character in the high byte of `R1`.
-
-```asm
-UARTPUT
-       MOV  R1,R2
-WAITTX LI   R0,>A025
-       BL   @SETGADDR
-       MOVB @UGRD,R3
-       JEQ  WAITTX          ; high byte zero means no free entries
-
-       LI   R0,>A100
-       BL   @SETGADDR
-       MOVB R2,@UGWD
-       RT
-```
-
-### Receive one byte
-
-Returns the byte in the high byte of `R1`.
-
-```asm
-UARTGET
-WAITRX LI   R0,>A024
-       BL   @SETGADDR
-       MOVB @UGRD,R1
-       JEQ  WAITRX
-
-       LI   R0,>B000
-       BL   @SETGADDR
-       MOVB @UGRD,R1
-       RT
-```
-
-These are intentionally blocking examples. Production software should define timeouts, inspect error bits, and transfer multiple bytes per address setup where practical.
-
-JP5 is 5 V TTL UART, not RS-232 voltage levels. Use a suitable level translator for a PC serial port and verify the voltage tolerance of Bluetooth or USB-UART modules.
-
-## GPIO
-
-Map GPIO with `>30`. Registers are relative to the selected slot:
-
-| Offset | Access | Meaning |
-|---:|---|---|
-| `>0020` | Write | direction bits, `0=input`, `1=output` |
-| `>0021–>1FFF` | Read/write | pin state; writes to inputs control pull-ups |
-
-The least-significant bit represents GPIO0. All pins reset as inputs with pull-ups disabled.
-
-Example uses include buttons, LEDs through appropriate resistors/drivers, simple control lines, and external device handshaking. The board manual and schematic must be used to confirm the actual number of routed GPIO pins on the specific board revision before publishing a wiring example.
-
-## ADC
-
-Map ADC device page 0–3 using `>40–>43`. Each page selects one analog channel. Reads from offsets `>0020–>1FFF` trigger a conversion and return an 8-bit result:
-
-```text
-0   ≈ 0 V
-255 ≈ 5 V
-```
-
-Allow approximately 104 microseconds per conversion and approximately 200 microseconds for the first conversion after power-up. Inputs must remain within the electrical limits of the ATmega and cartridge board.
+Tursi's `gromtest` contains the complete reference UART test.
 
 ## Timer
 
-Map the timer with `>70`. It is a free-running 16-bit counter clocked at approximately 7812.5 Hz, subject to the internal oscillator tolerance. It provides finer resolution than the VDP interrupt and does not need to be reset to measure elapsed intervals; subtract successive unsigned readings and allow for wraparound.
+Map the timer with `>70`.
+
+The firmware provides a free-running 16-bit timer at approximately 7812.5 Hz. Read successive values and subtract them with 16-bit wraparound to measure elapsed time.
+
+Tursi's `gromtest` includes a timer measurement test.
+
+## RAM
+
+The firmware exposes two RAM pages from the ATmega's SRAM:
+
+- one full 8 KiB page;
+- one approximately 7 KiB page, with the remainder reserved for firmware operation.
+
+RAM is volatile and is not affected by JP4 write protection.
+
+Tursi's test application maps and exercises both RAM pages.
 
 ## EEPROM
 
-Map EEPROM with `>20` for ordinary byte access. EEPROM is nonvolatile but has finite endurance and relatively slow writes. Use it for configuration, high scores, and occasional saved state—not for per-frame bank switching or streaming data. Validate persistent records with a checksum or CRC and avoid rewriting bytes whose values have not changed.
+Map EEPROM with `>20` for ordinary byte access.
 
-The fixed configuration window is at base 15, GROM `>F800–>FFFF`. Configuration writes require the firmware unlock sequence and mirrored/inverted bytes; normal applications should use GROMCFG unless they specifically need runtime reconfiguration.
+The 4 KiB EEPROM serves two different purposes:
 
-## Flash controller
+1. low protected configuration/mapping area; and
+2. application/user storage such as configuration, saves, or high scores.
 
-The FlashCtl device (`>60`) writes the ATmega's GROM flash. It exposes a 256-byte write buffer and erase/program commands. This is the mechanism used by GROMCFG. Flash has limited erase endurance; it is for cartridge creation or infrequent updates, not routine application storage.
+EEPROM writes are much slower than RAM and have finite write endurance. Avoid writing unchanged data repeatedly; use checksums/CRC for important persistent structures.
+
+### JP4 protection scope
+
+JP4 does **not** lock all EEPROM.
+
+When JP4 is closed, the firmware rejects persistent EEPROM writes to addresses below `>0102`, protecting the mapping/configuration area. User EEPROM beginning at `>0102` remains writable.
+
+The software configuration interface has its own unlock sequence as well; JP4 is an additional hardware gate for the protected portion.
+
+## Flash controller (FlashCtl)
+
+Map FlashCtl with `>60`.
+
+FlashCtl provides controlled writes to the **120 KiB GROM-content portion of the ATmega program Flash**. It is used by GROMCFG and is also exercised by `gromtest`.
+
+It is a legitimate feature for:
+
+- building/configuring cartridges;
+- tests;
+- firmware-supported cartridge updates that happen infrequently.
+
+It is **not** a good replacement for RAM or EEPROM for frequently changing application data. Flash erases are relatively slow and the implementation documentation rates Flash endurance at approximately 10,000 erase cycles.
+
+### JP4 and FlashCtl
+
+With JP4 closed, the firmware detects PC7 low and returns FlashCtl write-protected status (`2`) rather than erasing/programming Flash.
+
+`gromtest` explicitly tests this by asking the user to apply write protect and verifying that FlashCtl reports the protected state.
+
+## What JP4 does not protect
+
+Closing JP4 does not protect:
+
+- RAM;
+- normal user EEPROM at `>0102` and above;
+- the separate U2 external ROM;
+- the ATmega from a physical external programmer.
+
+It protects the UberGROM FlashCtl path and the protected EEPROM configuration area implemented by Tursi's firmware.

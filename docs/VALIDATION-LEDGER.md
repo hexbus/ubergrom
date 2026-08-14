@@ -1,66 +1,136 @@
 # Validation ledger
 
-This ledger prevents unresolved historical statements from leaking into the user-facing manual as fact.
+This ledger records issues that were either resolved during review or still require a hardware/software test before being stated as fact.
 
-## ATmega1284P fuse bytes
+## Resolved: software authorship and maintenance boundary
 
-**Status: resolved by project-maintainer confirmation.**
+The UberGROM AVR firmware and associated software are authored by **Mike Brent/Tursi** and retain the license in his source tree.
 
-The standard UberGROM firmware uses:
+Authoritative software source:
 
-- Extended: `FF`
-- High: `D8`
-- Low: `C2`
+- https://github.com/tursilion/ubergrom
 
-The supplied programmer screenshot matches these values. The older AtariAge value `F8/D8/C2` contains an incorrect extended-fuse byte and should be treated as a transcription error. The AVR Studio project value `FF/D8/E2` records a different startup-delay choice and is not the production setting to publish in the cartridge-programming instructions.
+This hardware/documentation repository describes integration and use. It must not use wording such as “project-maintainer programming practice” that implies ownership of Tursi's code or an obligation for him to maintain this documentation.
 
-Retain the practical warning that individual programmer applications may display or mask unused fuse bits differently. The user should verify the decoded settings and perform a fuse readback after programming.
+## Resolved: ATmega1284P fuse settings and functional meaning
 
-## ATmega programmer-image layout
+For the ATmega1284P board builds:
 
-**Status: resolved from released GROMSim documentation, formatter source, known-good images, and project-maintainer programming practice.**
+**Jon's established setting**
 
-- ATmega program Flash is 128 KiB and occupies unified programmer-buffer offsets `>00000–>1FFFF`.
-- ATmega EEPROM is 4 KiB and occupies unified programmer-buffer offsets `>20000–>20FFF`.
-- A combined Flash+EEPROM image is therefore 132 KiB (`>21000` bytes) and is loaded at `>00000` with **Include EEPROM** enabled.
-- When supplied separately, load the 128 KiB Flash image at `>00000` and the 4 KiB EEPROM image at `>20000` without clearing the existing buffer, then enable **Include EEPROM**.
-- The `>20000` position is a file/programmer-buffer convention; the AVR EEPROM itself is a separate address space beginning at EEPROM address `>0000`.
-- A 128 KiB Flash-only file intentionally contains no EEPROM data. Do not append erased bytes or enable EEPROM programming unless erasing/replacing configuration and save data is intended.
+- Extended `FF`
+- High `D8`
+- Low `C2`
 
-Keep this format separate from GROMCFG's “Save Entire Device” format, which contains 120 KiB of GROM data plus 4 KiB of rearranged EEPROM and omits the final 8 KiB firmware section.
+**Tursi's brown-out-protected example**
 
-## GPIO count and pad assignment
+- Extended `FC`
+- High `D8`
+- Low `C2`
 
-The draft manual states four GPIO pins, while some historical text and video remarks are uncertain. Verify against the final PCB revision, schematic, and firmware routing. Publish examples only for physically routed pins.
+Functional requirements for High/Low:
 
-## ROM chip compatibility
+- internal calibrated ~8 MHz RC oscillator;
+- CKDIV8 disabled;
+- 8 KiB boot section;
+- BOOTRST enabled;
+- serial/ISP programming enabled;
+- EEPROM not preserved automatically by Chip Erase.
 
-The repository currently names 39SF040, while historical boards and image instructions name 29F040 and 49F040. Confirm programmer and board compatibility details, voltage requirements, pin compatibility, and any manufacturer-specific exceptions before presenting a blanket supported-device list.
+Extended fuse difference:
 
-## Hand-assembled trampoline opcodes
+- `FF`: BOD disabled;
+- `FC`: BODLEVEL `100`, approximately 4.3 V.
 
-The example in `03-rom-bank-switching.md` is conceptually correct but hand-encoded opcode constants must be assembled and tested with the target assembler before being promoted as a copy-and-run example. The final examples should include source, binary output, and a small test cartridge.
+Raw bytes are ATmega1284P-specific. Any firmware port to another AVR requires translating the desired functions to that AVR's fuse map rather than copying these bytes.
 
-## Board power-up bank behavior
+## Resolved: ATmega programmer-image layout
 
-The 74LS378 lacks a guaranteed initialized state. Test multiple manufacturers/date codes and retain the conservative requirement for headers or equivalent recovery vectors in all banks.
+- 128 KiB program Flash occupies unified buffer `>00000–>1FFFF`.
+- 4 KiB EEPROM occupies unified buffer `>20000–>20FFF`.
+- Combined image size is 132 KiB (`>21000`).
+- Combined file: load at `>00000`, enable **Include EEPROM**.
+- Separate files: load 128 KiB Flash at `>00000`, then 4 KiB EEPROM at `>20000` without clearing the buffer, enable **Include EEPROM**.
+- `>20000` is a file/programmer-buffer offset; AVR EEPROM's own address space begins at EEPROM `>0000`.
+- Flash-only 128 KiB images intentionally omit EEPROM.
 
-## Extended-feature demonstrations
+This is distinct from GROMCFG's whole-device save, which contains 120 KiB GROM content + 4 KiB EEPROM and excludes the final 8 KiB AVR firmware.
 
-Create and test one minimal cartridge for each:
+## Resolved: GPIO count
 
-- UART echo/terminal at base 15, slot `>A000`;
-- GPIO input/output;
-- ADC live display;
-- timer interval measurement;
-- EEPROM save/restore with CRC;
-- RAM page read/write;
-- FlashCtl example limited to a disposable development device.
+The final PCB exposes **four GPIO pins**. Tursi's `gromtest` confirms only the four low GPIO bits are valid in the test interface.
 
-Each example should document mapping byte, base, slot, wiring, register addresses, build command, and expected output.
+Remove older uncertainty suggesting four-versus-six GPIO on this board.
 
-## Confirmed implementation limitation: JP4 write protect
+## Resolved: JP4 write-protect behavior
 
-**Status:** Confirmed by Jon Guidry for the current UberGROM implementation.
+Tursi's released source implements JP4 through ATmega PC7.
 
-Although the PCB, schematic, and historical manual identify JP4 as an UberGROM write-protect input, current firmware does not implement the protective behavior. Documentation must not instruct users to open or close JP4 as though it currently protects GROM flash, EEPROM, save data, or ATmega program Flash. Any future claim that JP4 is functional must identify and verify the firmware revision that implements it.
+When closed/grounded:
+
+- `flash.c` rejects FlashCtl erase/program requests and returns write-protected result code `2`;
+- `eeprom.c` rejects persistent writes to EEPROM addresses below `>0102`.
+
+JP4 does not block:
+
+- RAM;
+- user EEPROM `>0102+`;
+- U2 external ROM;
+- direct external programming of the ATmega.
+
+This supersedes the earlier draft statement that JP4 was unimplemented.
+
+## Resolved: U2 and U3 programming separation
+
+The external U2 ROM subsystem and U3 ATmega subsystem are independent.
+
+Documentation must not imply:
+
+- that GROMCFG or FlashCtl can program U2;
+- that JP1/JP3 affect ATmega EEPROM/GROM Flash;
+- that JP4 protects U2.
+
+JP1/JP3 are U2-side signal routing; JP4 is U3-side firmware write protection. **JP1 should remain at 1-2 (U2 write disabled): there is no complete in-circuit U2 programming path, and the cartridge's normal bank-selection mechanism itself uses TI write cycles in ROM space to clock the 74LS378.**
+
+## Resolved: 74LS378 startup behavior
+
+The power-up bank is **not guaranteed by the 74LS378 specification**, but an individual board can be characterized. Tursi's BankTest utility marks the bank detected at cold power-up with `*` (version 2+). Practical experience with these boards commonly finds the first or last bank, but this remains an empirical observation and must not become a software dependency.
+
+Reliable strategies:
+
+- put a valid startup/header/canonicalizer path in every possible ROM bank; or
+- on a ROM/GROM cartridge, use a GROM power-up link to establish the desired ROM bank.
+
+Also explicitly document that `QUIT` is software reset and does not reset the 74LS378 latch, so BankTest's startup indication is meaningful only immediately after a true power cycle.
+
+## Resolved: extended-feature reference examples
+
+Tursi has added the `gromtest` application to the current UberGROM source tree. It exercises:
+
+- EEPROM;
+- RAM;
+- four GPIO;
+- ADC;
+- UART;
+- FlashCtl;
+- timer.
+
+The documentation should point to this as the executable reference implementation rather than inventing unsupported register behavior.
+
+## Resolved: FlashCtl usage wording
+
+FlashCtl is not restricted to a “disposable development device.”
+
+It is used by GROMCFG and `gromtest` and is appropriate for cartridge creation, testing, and infrequent Flash updates. It should not be used as high-frequency application storage because Flash erase/program is slow and the documented erase endurance is approximately 10,000 cycles.
+
+## Still to test: hand-built ROM transition examples
+
+The bank-switching documentation now avoids hand-encoded TMS9900 opcode constants. Before promoting any larger example as a complete copy-and-build project, assemble it with the intended assembler and test on real 74LS378 hardware.
+
+## Still to document more fully: GROM power-up link example
+
+The ROM bank chapter now describes the GROM power-up link as a reliable way to establish a canonical ROM bank. Add a minimal, tested GROM power-up-link source example so a new developer can use this path without searching older TI documentation.
+
+## Still to reconcile: external U2 part list
+
+Historical material names 29F040/49F040 and some current text mentions 39SF040. Confirm exact pin/voltage/programmer compatibility for every device before publishing a blanket supported-parts list.

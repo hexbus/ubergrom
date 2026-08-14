@@ -1,50 +1,70 @@
 # UberGROM Cartridge Reference
 
-> **Technical draft for review.** This documentation is being rebuilt from the original board manual, the [GROMSim](https://github.com/tursilion/ubergrom) source and documentation, the AtariAge development
-[threads](https://github.com/hexbus/ubergrom/blob/main/README.md#primary-project-sources) , the board schematic, and working cartridge practice. Items that are not yet reconciled are isolated in [`docs/VALIDATION-LEDGER.md`](docs/VALIDATION-LEDGER.md) rather than presented as settled fact.
+> **Technical reference draft.** This documentation is being rebuilt from the final PCB/schematic, the original board manual, released UberGROM source, GROMSim/GROMCFG material, AtariAge design discussions, known-good cartridge images, and current designer review. Items still requiring confirmation are kept in [`docs/VALIDATION-LEDGER.md`](docs/VALIDATION-LEDGER.md) rather than presented as fact.
 
-![IMG_3367](https://github.com/user-attachments/assets/81efbad9-1caf-4bbf-b794-7bbb3c35c5da)
-![IMG_3368](https://github.com/user-attachments/assets/ae26573b-c1d6-400a-9539-089aa93326dd)
----
+The UberGROM cartridge board combines two **independent** cartridge resources:
 
-The UberGROM cartridge board combines two independent cartridge resources:
+1. **ATmega1284P UberGROM subsystem** — emulates TI GROM/GRAM and exposes EEPROM, GPIO, ADC, UART, FlashCtl, timer, and RAM through the TI GROM interface.
+2. **512 KiB bank-switched ROM subsystem** — a separate 512 KiB flash device divided into sixty-four non-inverted 8 KiB banks selected by a 74LS378 latch.
 
-1. **ATmega1284P UberGROM subsystem** — emulates TI GROM/GRAM and exposes EEPROM, GPIO, ADC, UART, flash-controller, timer, and RAM devices through the TI GROM interface.
-2. **512 KiB bank-switched ROM subsystem** — a separate 29F040/39SF040/49F040-compatible 512 KiB flash device divided into sixty-four non-inverted 8 KiB banks selected through a 74LS378 latch.
+There is no firmware programming path between these two subsystems. The ATmega does not program the external U2 ROM, and the U2 ROM bank hardware does not program or configure the ATmega.
 
-A cartridge image may therefore contain:
+For normal operation, **JP1 stays at 1-2 (U2 write disabled)**. The board does not currently provide a complete in-circuit programming path for U2; ROM bank switching uses TI write cycles only to clock the 74LS378 bank latch.
 
-- a required **ATmega1284P image** (commonly described as a 132 KiB programmer image), and
-- an optional **512 KiB ROM image**.
+## Software authorship and project scope
 
-The ROM image is optional only in the sense that some cartridges are GROM-only. When a distributed cartridge image includes a ROM component, that ROM is part of the software and must also be programmed.
+The **UberGROM AVR firmware and associated software are Mike Brent/Tursi's code**. The authoritative upstream source and its license are maintained in Tursi's repository:
+
+- https://github.com/tursilion/ubergrom
+
+This repository documents the cartridge hardware, image formats, configuration process, ROM banking, and use of the released UberGROM software. It does **not** claim ownership of, relicense, or make Tursi responsible for maintaining this documentation.
+
+The cartridge hardware was a collaborative project involving **James "Jim" Fetzner (Ksarul), Jon Guidry (acadiel/hexbus), and Mike Brent (Tursi)**, with contributions and review from the TI community. Individual software retains the authorship and license stated in its source.
 
 ## Start here
 
 | Goal | Documentation |
 |---|---|
-| Burn an existing cartridge image with an EPROM/MCU programmer | [Burning prebuilt images](docs/01-burning-prebuilt-images.md) |
+| Burn an existing GROM or ROM/GROM cartridge image | [Burning prebuilt images](docs/01-burning-prebuilt-images.md) |
 | Load or construct GROM content on a TI using GROMCFG | [Programming with GROMCFG](docs/02-programming-with-gromcfg.md) |
-| Build a 16 KiB–512 KiB assembly cartridge | [ROM bank switching](docs/03-rom-bank-switching.md) |
-| Use UART, GPIO, ADC, timer, RAM, EEPROM, or flash control | [Extended features](docs/04-extended-features.md) |
-| Assemble and configure the board | [Hardware reference](docs/05-hardware-reference.md) |
-| See unresolved source conflicts and required tests | [Validation ledger](docs/VALIDATION-LEDGER.md) |
+| Build a 16 KiB–512 KiB bank-switched ROM program | [ROM bank switching](docs/03-rom-bank-switching.md) |
+| Use UART, GPIO, ADC, timer, RAM, EEPROM, or FlashCtl | [Extended features](docs/04-extended-features.md) |
+| Identify jumpers, ISP pins, and board subsystems | [Hardware reference](docs/05-hardware-reference.md) |
+| Review open questions and resolved corrections | [Validation ledger](docs/VALIDATION-LEDGER.md) |
+
+## What files may be supplied with a cartridge
+
+A release can contain one or both of these hardware images:
+
+| Image | Destination | Required when supplied? |
+|---|---|---|
+| ATmega1284P UberGROM image | U3 ATmega1284P | Yes |
+| 512 KiB ROM image | U2 external flash | Yes, if the cartridge uses ROM |
+
+The ATmega image itself may be:
+
+- **128 KiB Flash-only**, or
+- **132 KiB combined Flash + EEPROM**, or
+- **128 KiB Flash plus a separate 4 KiB EEPROM image**.
+
+See [Burning prebuilt images](docs/01-burning-prebuilt-images.md) before programming a device.
 
 ## Capacity at a glance
 
 | Resource | Capacity | Organization |
 |---|---:|---|
-| Cartridge ROM flash | 512 KiB | 64 × 8 KiB banks, visible at CPU `>6000–>7FFF` |
-| UberGROM flash available for GROM content | 120 KiB | 15 × 8 KiB physical pages |
-| SRAM exposed by firmware | 15 KiB | one 8 KiB page and one 7 KiB page |
-| EEPROM | 4 KiB | configuration plus application storage |
+| External cartridge ROM | 512 KiB | 64 × 8 KiB banks at CPU `>6000–>7FFF` |
+| ATmega Flash used for emulated GROM | 120 KiB | 15 × 8 KiB physical GROM pages |
+| ATmega boot/firmware section | 8 KiB | final 8 KiB of the 128 KiB ATmega Flash |
+| SRAM exposed by UberGROM | 15 KiB | one 8 KiB page and one 7 KiB page |
+| ATmega EEPROM | 4 KiB | mapping/configuration plus application storage |
 | Logical GROM bases | 16 | CPU read-data ports `>9800, >9804, ... >983C` |
 
-**Logical address space is not physical capacity.** Sixteen bases provide many places where devices can be mapped, but the ATmega still contains only fifteen physical 8 KiB GROM pages.
+**Logical mapping space is not physical storage capacity.** The firmware can map devices into many logical base/slot combinations, but the ATmega1284P still contains only fifteen physical 8 KiB GROM pages.
 
 ## ROM bank selection summary
 
-The 74LS378 design is **non-inverted**. Bank *n* is selected by writing to:
+This board uses a **non-inverted 74LS378 address-selected mapper**. Bank *n* is selected by a write to:
 
 ```text
 >6000 + (n × 2), where n = 0 through 63
@@ -61,18 +81,33 @@ Examples:
        CLR  @>607E          ; bank 63
 ```
 
-On this UberGROM board, the written data value is immaterial: the write address alone supplies the six bank-select bits to the 74LS378. The complete 8 KiB cartridge window changes immediately, so code must switch from RAM or use an identical transition stub at the same address in every participating bank. This rule is specific to this board's address-selected mapper; it must not be generalized to the Gigacart, whose bank-selection protocol also depends on the value written.
+On this board, **the data value written is immaterial**. The write address supplies the six bank bits. `CLR` is merely a convenient way to cause the write.
 
-## Primary project sources
+The complete `>6000–>7FFF` window changes immediately. Code must therefore switch while executing from RAM or use an identical transition sequence at the same address in the source and destination banks.
 
-- Project repository: https://github.com/hexbus/ubergrom
-- UberGROM software and GROMSim: http://harmlesslion.com/software/ubergrom
+These rules are **not** universal to every TI mapper. In particular, the Gigacart uses a different scheme in which the value written also matters.
+
+## Critical ROM startup rule
+
+The 74LS378 has **no guaranteed power-up bank**. Software must not depend on a particular startup bank.
+
+That does not mean an individual cartridge cannot be characterized. Tursi's [BankTest](https://github.com/tursilion/banktest) utility tests all banks and, in version 2 and later, places an asterisk (`*`) next to the bank detected at cold power-up. In practical experience with these boards, the first or last ROM bank is commonly observed, but that is an empirical observation only—not a specification or a safe assumption for released software.
+
+For reliable hardware:
+
+- a ROM-only design should provide a valid startup/header path in **every possible bank**, normally by placing a small header/canonical-bank stub in every bank; or
+- a ROM/GROM design may use a **GROM power-up link** to establish the desired ROM bank before ROM execution.
+
+Also remember that **QUIT is a software reset and does not reset the ROM latch**. BankTest's startup-bank indication is therefore meaningful only immediately after an actual power cycle, before other software has changed the latch. A program may return to the console with any ROM bank still selected unless the software deliberately canonicalizes it or a GROM power-up path does so.
+
+## Primary sources
+
+- Hardware/documentation repository: https://github.com/hexbus/ubergrom
+- Tursi's UberGROM firmware and test software: https://github.com/tursilion/ubergrom
+- Tursi's BankTest utility: https://github.com/tursilion/banktest
 - Mega UberGROM thread: https://forums.atariage.com/topic/305712-the-mega-ubergrom-thread-start-here/
 - Bank-switching discussion: https://forums.atariage.com/topic/345895-bank-switching/
 - Multi-bank ROM discussion: https://forums.atariage.com/topic/350614-rom-cartridge-with-multiple-banks/
 - Banked-cartridge conventions: https://forums.atariage.com/topic/364796-code-conventions-for-bank-switched-cartridges/
-- Bank image construction help: https://forums.atariage.com/topic/326457-bank-switch-cartridge-files-help/
-
-## Credits
-
-- UberGROM is (c) 2014 Mike Brent, Jon Guidry, and James Fetzner, but offered to the TI community as hardware for open development
+- Bank-image construction help: https://forums.atariage.com/topic/326457-bank-switch-cartridge-files-help/
+- ATmega1284P manufacturer documentation: https://www.microchip.com/en-us/product/atmega1284p
