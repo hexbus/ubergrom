@@ -4,24 +4,18 @@ The external U2 ROM is divided into sixty-four 8 KiB banks. One bank at a time a
 
 This subsystem is independent of the ATmega/UberGROM subsystem.
 
-## Mapper used by this board
+## This board's bank mapper
 
 The UberGROM/512K ROM-GROM board uses a **non-inverted 74LS378 address-selected mapper**.
 
 The 74LS378 receives six bank bits from TI address lines A09–A14 and drives U2 address lines A13–A18.
 
-## Bank select
+## Bank selects
 
-For bank *n* (`0–63`), the bank select is:
-
-```text
-bank_select = >6000 + (bank × 2)
-```
-
-Equivalent calculation when examining a bank-select write:
+Bank *n* is selected by a TI write to:
 
 ```text
-bank = (write_address - >6000) / 2
+>6000 + (bank × 2)
 ```
 
 | Bank | Bank select | U2 file offset |
@@ -35,36 +29,37 @@ bank = (write_address - >6000) / 2
 
 ### The written data value is immaterial
 
-The bank bits come from the **write address**, not the data bus value.
+On this board, the bank bits come from the **write address**, not from the value placed on the data bus.
 
 ```asm
-       CLR  @>6000          ; bank select 0
-       CLR  @>6002          ; bank select 1
-       CLR  @>6004          ; bank select 2
-       CLR  @>6006          ; bank select 3
+       CLR  @>6000          ; bank 0
+       CLR  @>6002          ; bank 1
+       CLR  @>6004          ; bank 2
+       CLR  @>6006          ; bank 3
 ```
 
-`CLR` is conventional because it conveniently performs the write. The zero it writes has **no special banking meaning**.
+`CLR` is convenient because it performs the required write. The zero value written has no special banking significance.
 
-## The entire 8 KiB window changes immediately
+## The complete 8 KiB ROM window changes immediately
 
-A bank-select write replaces the complete `>6000–>7FFF` CPU window as the write occurs.
+A bank-select write replaces the complete CPU ROM window at `>6000–>7FFF` as the write occurs.
 
-If execution is currently in ROM, the instruction after the bank-select write is fetched from the **new** bank at the same CPU address.
+If code is executing from cartridge ROM, the instruction following the bank select is fetched from the **new** bank at the same CPU address. Software must therefore make the transition deliberately.
 
-A safe transition therefore normally uses one of these approaches:
+Common techniques are:
 
-1. execute the bank-select write from scratchpad/expansion RAM; or
-2. arrange the transition so the instruction fetched immediately after the bank-select write is valid at the same address in the destination bank.
+- execute the bank-select operation from scratchpad or expansion RAM;
+- arrange an identical transition instruction at the same address in the old and new banks; or
+- use a small RAM trampoline.
 
-## Scratchpad RAM trampoline
+## RAM trampoline
 
-The cleanest general-purpose method is to let the assembler produce the instructions normally, then copy the short routine into scratchpad RAM. This avoids hard-coding TMS9900 opcodes in the documentation and can be extended if a larger transition routine is needed.
+A straightforward approach is to let the assembler generate the bank-switch routine normally and copy it into scratchpad RAM. This avoids hand-maintaining instruction opcodes.
 
 ```asm
 BANKRAM EQU >8320
 
-* Copy TRAMP into scratchpad RAM at BANKRAM.
+* Copy TRAMP into scratchpad RAM.
 INSTALL
        LI   R0,TRAMP
        LI   R1,BANKRAM
@@ -74,45 +69,42 @@ INLP
        JNE  INLP
        B    *R11
 
-* This function is copied to scratchpad.
-* On entry:
-*   R1 = bank select (>6000, >6002, ... >607E)
-*   R2 = destination address in the new bank
+* Runs from scratchpad.
+* R1 = bank select, such as >6004
+* R2 = destination address in the newly selected bank
 TRAMP
        CLR  *R1
        B    *R2
 TRAMPEND
 ```
 
-After `INSTALL` has run, a call such as:
+To enter a routine in bank 2, for example:
 
 ```asm
-       LI   R1,>6004        ; select bank 2
+       LI   R1,>6004
        LI   R2,BANK2ENTRY
        B    @BANKRAM
 ```
 
-performs the bank select while executing from RAM and then branches into the newly visible bank.
+The trampoline can be extended if necessary; just keep it within the scratchpad space reserved by the application.
 
-Keep the scratchpad routine short and be mindful of other software using scratchpad RAM.
+## Power-up bank behavior
 
-## Startup state: undefined by specification, measurable in practice
+The 74LS378 does **not guarantee a defined state at power-up**, so a released cartridge must not depend on a particular initial ROM bank.
 
-The 74LS378 provides **no guaranteed power-up bank state**. A released cartridge must therefore work without assuming that bank 0, the last bank, or any other particular bank will be selected after power-on.
+That does not mean an individual cartridge cannot be characterized. Tursi's **BankTest** utility reports the bank observed at cold power-up and places an asterisk (`*`) next to that bank:
 
-At the same time, the startup state of an **individual cartridge** can be observed and is useful for testing and troubleshooting. Tursi's [BankTest](https://github.com/tursilion/banktest) utility exercises all cartridge banks; version 2 and later places an asterisk (`*`) next to the bank it detected at initial power-up.
+- https://github.com/tursilion/banktest
 
-In practical experience with these cartridge boards, the first or last ROM bank is commonly observed at cold power-up. Treat that only as an empirical observation about tested hardware—not as a guaranteed characteristic of the 74LS378.
+This is useful for hardware testing and troubleshooting. In practical experience, many 74LS378 devices encountered on these cartridge boards have tended to power up at one end of the bank range — often the first or last bank — but that is an empirical observation, **not a guaranteed property of the part**.
 
-A reliable cartridge still establishes a known ROM bank by design.
+Treat BankTest as a way to learn what a particular board did on that power-up, not as permission to make software depend on that result. Run it immediately after a real power cycle when testing startup behavior; later bank selects change the latch state.
 
-## ROM-only startup: put a header in every bank
+## ROM-only startup: put a usable header path in every bank
 
-For a ROM-only cartridge, the simplest reliable rule is: **put a valid cartridge header/startup entry in every possible bank**.
+For a ROM-only cartridge, the reliable approach is to provide a cartridge header/startup path in every bank that the 74LS378 could expose during the console scan.
 
-The startup entry should be at the same address in each bank, and its **first instruction should select the canonical bank**. Because the complete cartridge window changes immediately, the *next* instruction is then fetched from the canonical bank. This minimizes how much code must be duplicated.
-
-For example, if bank 0 is canonical:
+The most compact canonicalization is to make the **first instruction of the program entry point itself** select the intended bank. If every bank points its program-list entry to `KICKSTART` at the same address, only that first instruction needs to be duplicated after the header. Once it executes, the next instruction is fetched from bank 0.
 
 ```asm
        AORG >6000
@@ -131,46 +123,41 @@ PROGLIST
        TEXT 'MY CART '
        EVEN
 
-* KICKSTART must begin at the same address in every bank.
 KICKSTART
-       CLR  @>6000          ; FIRST instruction: select canonical bank 0
-
-* Everything after this point is fetched from bank 0.
+       CLR  @>6000          ; FIRST instruction: establish bank 0
+                            ; next instruction is now fetched from bank 0
        LWPI >8300
        LIMI 0
        B    @MAIN
 ```
 
-Every bank needs enough valid header/menu data to reach `KICKSTART`, and `KICKSTART` must begin at the same address. Once the first instruction selects bank 0, the remainder does not need to be duplicated in every bank.
+Place the header, program-list entry, and the first `CLR @>6000` instruction at the same addresses in every bank. The remainder of `KICKSTART` and `MAIN` need only exist in bank 0.
 
-### Advanced header-space note
+### Header-space optimization
 
-The conventional header above is intentionally clean and readable. Developers trying to recover a few bytes can exploit the fact that the console does not use every header field in every cartridge configuration; for example, unused DSR/subprogram-list fields may be repurposed as data. That is a space-saving technique, not the recommended documentation baseline—use a normal header unless the saved bytes matter.
+The console does not require every possible cartridge-header list to be populated. It is possible to save a few bytes by reusing fields that the cartridge does not need, but conventional headers are easier to inspect and maintain. Unless space is unusually tight, favor a normal, readable header layout.
 
-## ROM/GROM startup: GROM power-up link
+## ROM/GROM startup: a GROM power-up link can establish the ROM bank
 
-Because this board also supports GROM, a ROM/GROM cartridge can use a **GPL/GROM power-up link** to establish the desired ROM bank during the console's GROM power-up processing. This avoids relying on whatever state the 74LS378 happened to have when the ROM scan occurs.
+Because this board also provides GROM, a ROM/GROM cartridge can use a **GPL power-up link** to establish the intended ROM bank on each console startup/re-entry before ROM code depends on the latch state.
 
-Conceptually, the GPL power-up code performs a store to the desired ROM bank select (for bank 0, the `>6000` bank select) before ROM code relies on that bank.
+Conceptually, the GPL power-up routine performs a write to the desired bank select (for example, the bank-0 select at `>6000`). This can avoid duplicating ROM startup code across every bank when the GROM startup path is always present.
 
-The exact GPL source syntax should be assembled and tested before being presented as a copy-and-paste reference example; see the validation ledger for that pending example.
+The exact GPL source syntax should be taken from a tested cartridge/example before being published as a copy-and-paste snippet.
 
 ## QUIT does not reset the 74LS378
 
-`QUIT` is a **software reset**. It does not reset the 74LS378 latch, so the cartridge can remain in whichever bank software selected most recently.
+Cold power-up is only half of the startup problem.
 
-This is also why BankTest's `*` startup-bank indication is meaningful only immediately after an actual power cycle. Once any program changes banks, a subsequent software reset does not recreate the original cold-power latch state.
+`QUIT` is a **software reset** and does not reset the 74LS378 latch. If a program selected another ROM bank before returning to the console, that bank can remain selected during the next cartridge scan.
 
-Design for both cold power-up and later re-entry from the console:
-
-- ROM-only cartridges should be able to reach the canonical-bank instruction from every bank; and/or
-- ROM/GROM cartridges can use the GROM power-up path to establish the desired bank.
+A robust design therefore establishes its expected bank during startup rather than assuming that a console restart returned the latch to bank 0.
 
 ## Building the U2 image
 
-Each ROM bank is an 8192-byte image assembled for CPU addresses `>6000–>7FFF`.
+Each bank is an 8192-byte image assembled for CPU addresses `>6000–>7FFF`.
 
-For this **non-inverted** board, concatenate banks in ascending order:
+For this non-inverted board, concatenate banks in ascending order:
 
 ```text
 bank00.bin + bank01.bin + ... + bank63.bin = cartridge-512k.bin
@@ -185,36 +172,21 @@ bank 1   >02000–>03FFF
 bank 63  >7E000–>7FFFF
 ```
 
-For a 16 KiB program:
+When padding unused space, prefer `>FF`. That is the erased state of the Flash device, so a programmer can often skip those bytes; this reduces programming time and unnecessary device programming compared with padding erased space with `>00`.
+
+Do not silently reverse bank order. Images for older inverted-bank hardware may need bank-order conversion before use on this board.
+
+## Cross-bank addresses
+
+The same CPU address can refer to different bytes depending on which bank is selected. A cross-bank reference therefore consists of both:
 
 ```text
-bank 0 = first 8 KiB
-bank 1 = second 8 KiB
+(bank number, CPU address)
 ```
 
-### Pad unused ROM space with `>FF`
+There is no requirement to use a particular linker, generated symbol-table workflow, or bank ABI. Many TI multi-bank programs simply track these relationships directly in source. Fixed entry points, equates, tables, or generated symbols can all be useful depending on the size of the project.
 
-When a bank or full 512 KiB image contains unused space, prefer `>FF` padding rather than `>00`.
-
-Erased Flash already reads as `>FF`, so an external programmer does not need to program those bytes. This makes programming faster and avoids unnecessary program operations. Do not silently reorder banks while padding.
-
-## Cross-bank targets
-
-A cross-bank destination consists of two pieces of information:
-
-```text
-(bank number, CPU address in >6000–>7FFF)
-```
-
-There is no assumption here that a TI linker will manage that relationship automatically. Many multi-bank programs simply track these targets explicitly in source.
-
-Practical approaches include:
-
-- fixed entry addresses that are deliberately kept stable;
-- a hand-maintained equate/include file containing bank numbers and addresses; or
-- a generated equate file if your build system already has a tool for producing one.
-
-Generated symbol tables and full dependent-bank rebuild schemes are **optional build conveniences**, not requirements of the cartridge hardware. The essential rule is only that the caller use the correct bank select and the correct CPU address for the version of the destination code being built.
+The important rule is simply: when code transfers across banks, make sure both the **bank select** and the **destination address in that bank** are correct.
 
 ## Inverted-image warning
 

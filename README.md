@@ -9,8 +9,6 @@ The UberGROM cartridge board combines two **independent** cartridge resources:
 
 There is no firmware programming path between these two subsystems. The ATmega does not program the external U2 ROM, and the U2 ROM bank hardware does not program or configure the ATmega.
 
-For normal operation, **JP1 stays at 1-2 (U2 write disabled)**. The board does not currently provide a complete in-circuit programming path for U2; ROM bank switching uses TI write cycles only to clock the 74LS378 bank latch.
-
 ## Software authorship and project scope
 
 The **UberGROM AVR firmware and associated software are Mike Brent/Tursi's code**. The authoritative upstream source and its license are maintained in Tursi's repository:
@@ -29,17 +27,20 @@ The cartridge hardware was a collaborative project involving **James "Jim" Fetzn
 | Load or construct GROM content on a TI using GROMCFG | [Programming with GROMCFG](docs/02-programming-with-gromcfg.md) |
 | Build a 16 KiB–512 KiB bank-switched ROM program | [ROM bank switching](docs/03-rom-bank-switching.md) |
 | Use UART, GPIO, ADC, timer, RAM, EEPROM, or FlashCtl | [Extended features](docs/04-extended-features.md) |
+| See contributed UART and ADC application examples | [Examples](examples/README.md) |
 | Identify jumpers, ISP pins, and board subsystems | [Hardware reference](docs/05-hardware-reference.md) |
 | Review open questions and resolved corrections | [Validation ledger](docs/VALIDATION-LEDGER.md) |
 
 ## What files may be supplied with a cartridge
 
-A complete release for programming a **blank ATmega1284P** must include both the ATmega Flash contents **and** the 4 KiB EEPROM configuration that tells UberGROM what is mapped where. Package those as either:
+For a **blank ATmega1284P**, the UberGROM program Flash is not enough by itself: the 4 KiB EEPROM contains the mapping/configuration that makes the cartridge content useful. A complete blank-chip release should therefore provide the ATmega content in one of these forms:
 
-- **one 132 KiB combined ATmega image** (128 KiB Flash + 4 KiB EEPROM), or
-- **two ATmega files**: 128 KiB Flash plus a separate 4 KiB EEPROM image.
+- **one combined 132 KiB image** containing 128 KiB program Flash followed by 4 KiB EEPROM; or
+- **two separate images**: 128 KiB program Flash plus the matching 4 KiB EEPROM image.
 
-If the cartridge also uses the separate U2 ROM, include its ROM image as well. A 128 KiB ATmega Flash-only file is useful as an **update image** when an already-configured EEPROM is intentionally being preserved, but it is not a complete blank-chip release by itself.
+If the cartridge also uses the external U2 ROM, its 512 KiB ROM image is supplied in addition to the ATmega image(s). A GROM-only cartridge legitimately has no U2 image.
+
+A lone 128 KiB ATmega Flash file is best treated as an **update artifact for an already configured cartridge**, unless the release explicitly explains how the required EEPROM configuration will be created.
 
 See [Burning prebuilt images](docs/01-burning-prebuilt-images.md) before programming a device.
 
@@ -79,27 +80,26 @@ On this board, **the data value written is immaterial**. The write address suppl
 
 The complete `>6000–>7FFF` window changes immediately. Code must therefore switch while executing from RAM or use an identical transition sequence at the same address in the source and destination banks.
 
-
 ## Critical ROM startup rule
 
-The 74LS378 has **no guaranteed power-up bank**. Software must not depend on a particular startup bank.
+The 74LS378 has **no guaranteed power-up bank**, so released software must establish the bank it expects instead of assuming a particular cold-start state.
 
-That does not mean an individual cartridge cannot be characterized. Tursi's [BankTest](https://github.com/tursilion/banktest) utility tests all banks and, in version 2 and later, places an asterisk (`*`) next to the bank detected at cold power-up. In practical experience with these boards, the first or last ROM bank is commonly observed, but that is an empirical observation only—not a specification or a safe assumption for released software.
+For hardware testing, Tursi's [BankTest](https://github.com/tursilion/banktest) can identify the bank observed on a particular cold power-up and marks it with `*`. In practical experience many parts tend to start at one end of the bank range, often the first or last bank, but that observation is not a design guarantee.
 
-For reliable hardware:
+For reliable software:
 
-- a ROM-only design should provide a valid startup/header path in **every possible bank**, normally by placing a small header/canonical-bank stub in every bank; or
+- a ROM-only design should provide a valid startup/header path in every possible bank and make the first program instruction select the canonical bank; or
 - a ROM/GROM design may use a **GROM power-up link** to establish the desired ROM bank before ROM execution.
 
-Also remember that **QUIT is a software reset and does not reset the ROM latch**. BankTest's startup-bank indication is therefore meaningful only immediately after an actual power cycle, before other software has changed the latch. A program may return to the console with any ROM bank still selected unless the software deliberately canonicalizes it or a GROM power-up path does so.
+Also remember that **QUIT is a software reset and does not reset the ROM latch**. A program may return to the console with any ROM bank still selected unless its startup path deliberately establishes the expected bank.
 
 ## Primary sources
 
 - Hardware/documentation repository: https://github.com/hexbus/ubergrom
 - Tursi's UberGROM firmware and test software: https://github.com/tursilion/ubergrom
-- Tursi's BankTest utility: https://github.com/tursilion/banktest
 - Mega UberGROM thread: https://forums.atariage.com/topic/305712-the-mega-ubergrom-thread-start-here/
 - Bank-switching discussion: https://forums.atariage.com/topic/345895-bank-switching/
+- Tursi BankTest: https://github.com/tursilion/banktest
 - Multi-bank ROM discussion: https://forums.atariage.com/topic/350614-rom-cartridge-with-multiple-banks/
 - Banked-cartridge conventions: https://forums.atariage.com/topic/364796-code-conventions-for-bank-switched-cartridges/
 - Bank-image construction help: https://forums.atariage.com/topic/326457-bank-switch-cartridge-files-help/

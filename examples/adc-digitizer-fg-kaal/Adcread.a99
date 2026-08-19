@@ -1,0 +1,139 @@
+* 
+* Read two UBERGrom ADC values and assign
+* these values to two TI-Basic variables.
+*
+* This function needs BSCSUP
+*
+
+	DEF	ADCRD
+	REF	XMLLNK,NUMASG
+
+FAC	EQU	>834A		Floating point accumulator
+GRMRD	EQU	>9800
+GRMRA	EQU	>9802
+GRMWD	EQU	>9C00
+GRMWA	EQU	>9C02
+
+* GROM base/slot to use for ADC
+*
+ADC#GB EQU  >00		Uart GROM base (0-15 or >00->0F)
+ADC#GS EQU  >8000	Uart GROM slot (>6000,>8000,>A000,>C000,>E000)
+
+* UBERGrom ADC Read/Write addresses
+*
+ADC#BA	EQU	ADC#GB*4+>9800	Base address
+ADC#RD	EQU	ADC#BA 		Read data
+ADC#RA	EQU	ADC#BA+2	Read address
+ADC#WD	EQU	ADC#BA+>0400	Write data
+ADC#WA	EQU	ADC#BA+>0402	Write address
+
+ADC0#R	EQU	ADC#GS		ADC0 Read address
+ADC1#R	EQU	ADC#GS+>2000	ADC1 Read address
+
+ADC0	DATA 	>0000		ADC values (0-255)
+ADC1	DATA 	>0000
+ADC2	DATA 	>0000
+ADC3	DATA 	>0000
+
+SAVRT	DATA	>0000		Return addres
+SAVGRM	DATA	>0000
+
+
+ADCRD	EQU	$
+*	DATA	>0D00		TI994w debugger
+	MOV	R11,@SAVRT
+*
+*	Save GROM address
+*
+	MOVB	@GRMRA,R0
+	SWPB	R0
+	MOVB	@GRMRA,R0
+	SWPB	R0
+	DEC	R0
+	MOV	R0,@SAVGRM
+*
+* Read UBERGrom ADC0 value
+*
+	LI	R0,ADC0#R
+	BL	@UGADCR
+	MOV	R0,@ADC0
+*
+* Read UBERGrom ADC0 value
+*
+	LI	R0,ADC1#R
+	BL	@UGADCR
+	MOV	R0,@ADC1
+*
+* Convert integer value to float in RADIX100 format
+* and assign this to TI basic variable
+*
+	LI	R0,ADC0		First ADC value
+	LI	R1,1		First variable
+	BL	@ASSIGN
+	
+	LI	R0,ADC1		Next ADC value
+	LI	R1,2		Next variable
+	BL	@ASSIGN
+*
+* Restore GROM address
+*
+	MOV	@SAVGRM,R0
+	MOVB	R0,@GRMWA
+	SWPB	R0
+	MOVB	R0,@GRMWA
+*
+* Return to TI Basic
+*
+	MOV	@SAVRT,R11
+	B	*R11
+	
+* INTFLT
+*
+* Convert an integer value to a float value
+*
+* Input : R0 integer value
+*
+INTFLT	EQU	$
+	MOV	*R0,@FAC
+	BLWP	@XMLLNK
+	DATA	>2300		CIF - Convert Integer to Floatingpoint
+	B	*R11
+
+* ASSIGN
+*
+* Assign a value to a TI Basic variable
+*
+* Input : R0 integer value
+*         R1 argument number
+*
+ASSIGN	EQU	$
+	MOV	R11,R10
+	BL	@INTFLT
+	CLR	R0		Simple numeric variable
+	BLWP	@NUMASG
+	B	*R10
+
+* UGADCR
+*
+* Read UBERGrom ADC value
+*
+* Input : R0 ADC Grom slot address
+* Output: R0 ADC Value
+
+UGADCR	EQU	$
+*	DATA	>0D00
+	AI	R0,>0020	Set ADC address (offset >0020 of base)
+	MOVB	R0,@ADC#WA
+	SWPB	R0
+	MOVB	R0,@ADC#WA
+*
+* Read the UBERGrom ADC0 values
+*
+	MOVB	@ADC#RD,R0
+	SRL	R0,8
+	B	*R11
+
+	END
+
+
+	

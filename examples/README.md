@@ -1,18 +1,26 @@
-# Example-program plan
+# UberGROM examples
 
-Reference-grade documentation should prefer buildable/testable examples over isolated snippets.
+This directory collects practical TI-side examples contributed by UberGROM users.
 
-Planned examples:
+These examples are **not replacements for Tursi's firmware source or test suite**. For the authoritative implementation tests for EEPROM, RAM, GPIO, ADC, UART, FlashCtl, and timer, see Tursi's upstream `gromtest` directory:
 
-1. `bank16k/` — two-bank ROM cartridge showing the common startup-header pattern and a scratchpad RAM trampoline.
-2. `bank64k/` — eight-bank code/data example with explicitly tracked bank/address targets; generated equates may be added as an optional build convenience.
-3. `grom-powerup-bank0/` — tested GPL/GROM power-up link that establishes ROM bank 0 before ROM startup.
-4. `uart-echo/` — small annotated example derived from Tursi's `gromtest`, including buffer/status handling and application flow control.
-5. `gpio-demo/` — four-pin GPIO example derived from `gromtest`.
-6. `adc-meter/` — four-base ADC example derived from `gromtest`.
-7. `timer-demo/` — timer measurement example derived from `gromtest`.
-8. `eeprom-save/` — persistent user-EEPROM example that avoids unnecessary rewrites.
+- https://github.com/tursilion/ubergrom/tree/main/gromtest
 
-For UberGROM peripherals, Tursi's current `gromtest` remains the implementation reference. Any smaller examples added here should explain or adapt those access patterns rather than establish a competing interface.
+The examples here show how real applications have used those interfaces.
 
-Each directory should contain source, build instructions, expected output/binary hash where practical, mapping notes, and a real-hardware test procedure.
+## Included contributions
+
+| Directory | Contributor | Interface | What it demonstrates |
+|---|---|---|---|
+| [`uart-telco-tim`](uart-telco-tim/) | Tim / InsaneMultitasker | UART | 38.4K 8N1 terminal-style transmit, receive-count polling, draining the UberGROM receive FIFO into a larger RAM circular buffer |
+| [`adc-digitizer-fg-kaal`](adc-digitizer-fg-kaal/) | Fred Kaal / F.G. Kaal | ADC | Reading two UberGROM ADC channels from TMS9900 assembly and returning the values to TI BASIC for a two-link digitizer |
+
+## Contribution policy
+
+When adding an example:
+
+- preserve the original author's credit;
+- identify the required GROM base/slot mapping;
+- state any external library or hardware requirements;
+- distinguish historical application-specific code from a minimal interface example;
+- do not copy or modify Tursi's UberGROM firmware source into this repository without respecting its upstream license.

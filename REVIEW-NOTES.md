@@ -1,109 +1,88 @@
-# Designer-review changes — August 2026
+# Designer/community review changes — August 2026
 
-This file records documentation changes made after review by Mike Brent/Tursi and Jon Guidry. It is an editorial audit, not part of the UberGROM software license.
+This file records documentation changes made after review by Mike Brent/Tursi, James Fetzner, Jon Guidry, Tim/InsaneMultitasker, Fred Kaal/F.G. Kaal, and other TI community discussion. It is an editorial audit, not part of the UberGROM software license.
 
 ## Software ownership and maintenance
 
-Changed documentation to explicitly separate:
+The documentation explicitly separates the collaborative cartridge hardware/documentation project from Mike Brent/Tursi's UberGROM AVR firmware and software. Tursi's repository remains the authoritative software source; these docs do not claim ownership of or maintenance responsibility for his code.
 
-- collaborative cartridge hardware documentation; and
-- Mike Brent/Tursi's UberGROM AVR firmware and software.
+## Complete ATmega release images
 
-The documentation points to Tursi's repository as the authoritative software source and does not describe another person as maintainer/owner of his code.
+Clarified that a blank ATmega1284P needs both its 128 KiB program Flash image and its 4 KiB EEPROM configuration. A complete release should therefore provide either a combined 132 KiB image or the matching Flash+EEPROM pair. A 128 KiB Flash-only file is treated as an update artifact unless configuration is supplied separately.
 
-## Fuses
+## Fuses and brown-out detection
 
-Expanded ATmega1284P fuse documentation from raw byte values into the actual fuse functions.
+Expanded the fuse documentation from raw bytes into their functions. For new ATmega1284P programming, `FC/D8/C2` is now the recommended setting because the ~4.3 V BOD keeps the AVR held until the aging TI 5 V supply is in a stable range. Jon's historically used `FF/D8/C2` remains documented as known-working reference information, not the preferred new-device setting.
 
-Documented:
+## JP4 distribution lock
 
-- Jon's established `FF/D8/C2`;
-- Tursi's `FC/D8/C2` example, differing only in BOD configuration;
-- `FF` = BOD disabled;
-- `FC` = approximately 4.3 V BOD;
-- High `D8` and Low `C2` bit meanings;
-- warning that other AVR devices require their own fuse encoding.
+Corrected the earlier erroneous claim that JP4 was unimplemented. Tursi's released source checks PC7 in `eeprom.c` and `flash.c`.
 
-## JP4 write protect
+JP4 is now described as the intended **distribution lock**:
 
-Reversed the earlier incorrect statement that JP4 was unimplemented.
+- blocks FlashCtl erase/program operations;
+- blocks protected configuration EEPROM writes below `>0102`;
+- leaves RAM and user EEPROM `>0102+` available for normal application storage;
+- does not interact with the independent U2 ROM subsystem.
 
-Current Tursi source confirms PC7 write protection in:
-
-- `eeprom.c` for the protected configuration EEPROM region; and
-- `flash.c` for FlashCtl writes.
-
-Documented what JP4 protects and, equally importantly, what it does not protect.
+Repeated discussion of defeating protection with an external programmer was removed because it is outside the useful operational scope of the cartridge documentation.
 
 ## U2 ROM versus U3 ATmega
 
-Strengthened the hardware separation throughout the docs:
+Strengthened the separation between the two cartridge domains:
 
-- JP1/JP3 are U2-side routing;
-- JP4 is U3/ATmega-side firmware write protection;
 - GROMCFG/FlashCtl cannot program U2;
-- ROM bank-select writes do not program U2;
-- the ATmega does not control U2 contents.
+- U2 banking cannot alter ATmega memory;
+- JP1/JP3 are U2-side controls;
+- JP4 is an ATmega/UberGROM control.
 
-### JP1 / U2 WE clarification from Jim Fetzner
+Jim Fetzner clarified that the current design has no supported in-circuit programming method for U2. JP1 should remain at 1-2 / write disabled for normal operation because TI writes to cartridge ROM space are intentionally used to clock the 74LS378 bank latch while U2 itself remains write-disabled.
 
-The current board has no complete way to program the 512 KiB U2 Flash in circuit. JP1 must not be presented as a usable in-circuit programming selector. Leave JP1 at **1-2 (`+5V / Write Disable`)** for normal operation. The reason is architectural: bank switching is performed by TI writes to cartridge ROM-space addresses, which assert the write cycle needed to clock the 74LS378. Those writes select a bank; they are not U2 programming cycles, and U2 is intentionally kept write-disabled.
+## 74LS378 startup, BankTest, and QUIT
 
-## GPIO
+The docs retain the hardware rule that the 74LS378 power-up state is **not guaranteed**, but the wording now distinguishes specification from practical testing.
 
-Resolved the count to four physical GPIO pins on the PCB.
+Tursi's BankTest is documented as a useful diagnostic that marks the bank observed on a particular cold power-up with `*`. Practical experience that many parts tend to start at the first or last bank is identified as empirical observation, not a design guarantee.
 
-The extended-feature chapter now points to Tursi's `gromtest`, which treats the low four GPIO bits as valid.
+The separate `QUIT` warning remains: a software reset does not reset the bank latch.
 
-## 74LS378 startup and QUIT
+## Bank-switching examples
 
-Refined the wording to distinguish **no guaranteed startup bank** from **a startup bank that can be measured on an individual cartridge**.
+Changed terminology from “select address” to **bank select** and removed discussion of unrelated mapper designs.
 
-Added Tursi's BankTest utility (`https://github.com/tursilion/banktest`), which marks the bank detected at cold power-up with `*` in version 2 and later. The docs also record the practical observation that first- or last-bank startup is common on these boards, while making clear that software must never rely on that behavior.
+Replaced the earlier confusing trampoline with Tursi's suggested approach: assemble `CLR *R1 / B *R2` normally and copy the assembled routine into scratchpad with a loop.
 
-Added the separate `QUIT` warning: software reset does not reset the bank latch, so the BankTest startup marker is valid only immediately after a true power cycle.
+For ROM-only startup, the first instruction at `KICKSTART` now performs the bank select (`CLR @>6000`). This means every bank needs the common header/entry and first bank-select instruction, after which execution continues from bank 0.
 
-Documented two reliable strategies:
+Added the GROM/GPL power-up-link strategy as the other clean way to establish the ROM bank. Exact GPL source syntax remains in the validation ledger until tested.
 
-- startup/header/canonicalizer path in every possible ROM bank; or
-- GROM power-up link to establish the ROM bank on a ROM/GROM cartridge.
+Changed padding guidance to prefer `>FF`, the erased state of the external Flash.
+
+Relaxed the cross-bank-symbol section: there is no mandated TI linker or generated-symbol workflow; projects may track bank+address relationships in whatever maintainable way fits the codebase.
+
+## GPIO and ATmega1284P configuration
+
+Resolved the production PCB to four physical GPIO pins. The extended-feature table now explicitly states that it documents the ATmega1284P configuration used by the production board.
 
 ## gromtest
 
-Added Tursi's current `gromtest` directory as the executable reference for:
+Tursi added `gromtest` to the upstream UberGROM repository. The documentation uses it as the authoritative executable reference for EEPROM, RAM, GPIO, ADC, UART, FlashCtl, and timer behavior rather than redistributing or rewriting Tursi's source.
 
-- EEPROM
-- RAM
-- GPIO
-- ADC
-- UART
-- FlashCtl
-- timer
+## UART
 
-## FlashCtl
+Documented the 256-byte receive buffer and the need for TI-side flow-control/buffer management at sustained high rates.
 
-Removed the “disposable development device only” characterization.
+Added Tim/InsaneMultitasker's TELCO UberGROM patch as a contributed real-world example. It demonstrates 38.4K 8N1 initialization, character transmit, receive-count polling, draining the UberGROM receive buffer, and moving incoming data into a larger 4 KiB RAM circular buffer.
 
-FlashCtl is documented as suitable for configuration, tests, and infrequent updates, while warning against high-frequency storage because Flash writes are slow and erase endurance is finite.
+## ADC
 
+Added Fred Kaal/F.G. Kaal's two-channel digitizer example. It demonstrates TMS9900 reads from two mapped ADC channels and passes the 0–255 values back to TI BASIC, which converts the linkage angles into X/Y coordinates.
 
-## Second Tursi review pass
+The contributed source is included; historical magazine scans are not redistributed in the documentation package.
 
-Additional changes made after the next designer review:
+## EEPROM, timer, and Flash endurance
 
-- A complete blank-ATmega release must include EEPROM configuration as well as the 128 KiB Flash image. A 128 KiB Flash-only file is now described as an update artifact, not a complete cartridge image.
-- `FC/D8/C2` is now the recommended ATmega1284P fuse set for newly programmed boards because it enables approximately 4.3 V brown-out protection. `FF/D8/C2` remains documented as the known-working BOD-disabled setting used on existing boards.
-- JP4 wording is now consistently **distribution lock**; repeated discussion of unrelated external-programmer behavior was removed.
-- Removed references to unrelated mapper designs from the 512 KiB banking chapter.
-- Replaced “select address” terminology with **bank select**.
-- Replaced the earlier scratchpad example with the assembler-generated `TRAMP` routine copied to RAM with a loop.
-- Simplified the every-bank startup pattern: `CLR @>6000` is the first instruction at the common KICKSTART address so execution immediately continues from bank 0.
-- Added a GROM/GPL power-up-link strategy and kept the exact GPL source as a test-before-publish item.
-- Added an advanced note that unused cartridge-header fields can be repurposed when space is critical, while retaining a conventional header as the recommended example.
-- Changed unused ROM padding recommendation to `>FF`.
-- Rewrote cross-bank-symbol guidance so generated tables/relinking are optional build techniques, not hardware requirements.
-- Extended-feature tables now explicitly describe the ATmega1284P build.
-- Extended-feature examples now follow the current `gromtest` access patterns.
-- UART documentation now explains the 256-byte allocated buffers, effective ring-buffer capacity, and need for software/manual flow control at high rates.
-- Timer wording now notes the factory-calibrated internal RC oscillator is expected to be reasonably close to nominal.
-- EEPROM endurance is stated as approximately 100,000 cycles; Flash endurance as approximately 10,000 cycles.
+- EEPROM endurance is documented as approximately 100,000 write/erase cycles per cell and is not recommended for frequently changing/live banking state.
+- Flash endurance remains approximately 10,000 erase cycles.
+- Timer wording notes that it is based on the internal oscillator but that AVR devices are factory calibrated and should normally be reasonably close.
+- FlashCtl is documented as appropriate for configuration, testing, and infrequent updates rather than as a disposable-development-only feature.

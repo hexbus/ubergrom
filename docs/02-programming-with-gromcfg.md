@@ -50,7 +50,7 @@ With JP4 **closed**, PC7 is grounded and firmware write protection blocks:
 
 Therefore leave JP4 **open** while using GROMCFG to build or reconfigure a cartridge.
 
-JP4 was specifically intended as a **distribution lock**: it locks GROM Flash programming and the protected mapping/configuration area while leaving ordinary user EEPROM/save data and RAM available to the application. It is unrelated to the separate U2 ROM.
+The jumper does not block ordinary user EEPROM above the protected configuration region, RAM, or the separate U2 ROM.
 
 ## Recovery startup
 
@@ -140,7 +140,7 @@ A practical finalization sequence is:
 3. Save a complete GROMCFG backup.
 4. Make any desired final advanced-setting changes.
 5. Exit GROMCFG and cold-boot/test the cartridge.
-6. If the cartridge is ready for distribution and should be locked against later GROMCFG Flash/configuration changes, power off and **close JP4**.
+6. If the cartridge should be locked against later GROMCFG Flash/configuration changes, power off and **close JP4**.
 
 With JP4 closed, GROMCFG will not be able to rewrite the protected Flash/configuration areas until the jumper is opened again.
 

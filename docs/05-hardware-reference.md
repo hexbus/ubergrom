@@ -21,7 +21,7 @@ There is no ATmega-to-U2 programming path. GROMCFG/FlashCtl cannot program U2, a
 
 | Ref. | Domain | Purpose |
 |---|---|---|
-| JP1 | U2 ROM | U2 `WE` routing provision; **leave at 1-2 (write disabled)** in the current design |
+| JP1 | U2 ROM | U2 `WE` routing; default silkscreen position disables U2 writes |
 | JP3 | U2 ROM | U2 `OE` routing; default silkscreen position is the normal ROM setting |
 | JP4 | U3 UberGROM | hardware write-protect input used by released firmware |
 | JP5 | U3 UberGROM | UART: GND / RXD0 / TXD0 |
@@ -41,24 +41,25 @@ JP1/JP3 belong to the **external U2 ROM side only**. They do not control:
 
 Likewise, JP4 belongs to the **ATmega/UberGROM side only** and does not protect or program U2.
 
-There is currently **no complete in-circuit programming path for U2** on this board. JP1 must therefore not be documented as a way to program the 512 KiB external Flash in circuit. Program U2 externally with a device programmer.
+The old manual's implication that jumper changes might form a normal in-circuit U2 programming workflow should not be promoted as a supported procedure without a separately verified hardware method. The safe documented programming method for U2 is to program the external ROM device with an appropriate programmer.
 
-## JP1 — U2 WE routing (leave at 1-2)
+## JP1 — U2 WE routing
 
-The PCB silkscreen identifies JP1 as **`U-2 WE`** and marks `1-2` as `+5V / Write Disable`. **For the current board and software, leave JP1 at 1-2.**
+The PCB silkscreen identifies JP1 as **`U-2 WE`** and marks the default `1-2` position as `+5V / Write Disable`.
 
-JP1 was provided as U2 write-enable routing, but the cartridge has no complete mechanism for programming the 512 KiB U2 Flash in circuit. Moving JP1 to the alternate position does **not** turn the cartridge into an in-circuit U2 programmer. U2 should be removed/programmed with an external programmer (or otherwise programmed outside this cartridge circuit).
+For the current board, **leave JP1 in position 1-2 for normal operation**. There is no supported mechanism to program the external 512 KiB U2 Flash in circuit, so moving JP1 to the alternate WE position does not create a usable in-circuit programming mode. Program U2 externally.
 
-The `1-2` write-disabled position is also important to the board's bank-switching architecture. This cartridge selects ROM banks by performing TI write cycles to addresses in the cartridge ROM space (`>6000`, `>6002`, and so on). Those cycles intentionally assert the console's write signal so the 74LS378 can latch the bank-select address bits. U2 itself is **not** supposed to be written during those bank-select cycles, so its `WE` input is held inactive in the normal `1-2` position.
+The reason the write-disabled position matters is the banking architecture: the TI intentionally performs write cycles in cartridge ROM space to clock the 74LS378 bank latch. U2 itself must remain write-disabled while those bank-select writes occur.
 
-In other words:
+```text
+TI write to >6000 + bank×2
+        |
+        +----> 74LS378 latches the bank address bits
+        |
+        +----> U2 remains write-disabled (JP1 = 1-2)
+```
 
-- TI write to `>6000 + bank×2` → clocks the **74LS378 bank latch**;
-- U2 remains read-only during normal cartridge operation;
-- the data value written during bank selection is immaterial on this board; and
-- JP1 is **not** an UberGROM/ATmega write-protect control and has no connection to GROMCFG or FlashCtl.
-
-Bank-selection writes such as `CLR @>6002` therefore change the selected U2 bank without programming U2 Flash.
+JP1 is entirely on the U2 side. It has no connection to ATmega EEPROM/configuration or the UberGROM distribution lock at JP4.
 
 ## JP3 — U2 OE routing
 
@@ -66,9 +67,9 @@ JP3 is labeled **`U-2 OE`**. Use the PCB's documented default position for norma
 
 JP3 is not a second UberGROM enable or write-protect jumper.
 
-## JP4 — UberGROM distribution lock
+## JP4 — implemented UberGROM write protect
 
-JP4 is labeled **`U-3 Write Protect`** and is normally open. It was specifically designed as a **distribution lock**: configure/test the cartridge with JP4 open, then close it on a finished cartridge when the GROM Flash and mapping should no longer be modifiable through the TI-side UberGROM interfaces.
+JP4 is labeled **`U-3 Write Protect`** and is normally open.
 
 In Tursi's released firmware, closing JP4 grounds ATmega **PC7**. The firmware checks this input in two places:
 
@@ -93,15 +94,21 @@ With JP4 closed, persistent writes to:
 
 are rejected. This protects the mapping/configuration portion of EEPROM.
 
-### Protection scope
+### Distribution-lock behavior
 
-JP4 protects the UberGROM GROM-Flash programming path and the low EEPROM mapping/configuration area. It intentionally leaves RAM and user EEPROM at `>0102` and above writable, so a distributed cartridge can still save settings, high scores, and other application data. JP4 is an ATmega/UberGROM-side control and is unrelated to U2.
+JP4 was specifically intended as a **distribution lock**. It protects the cartridge's GROM Flash and mapping/configuration from ordinary TI-side modification while intentionally leaving these resources usable:
+
+- RAM;
+- normal user EEPROM at `>0102` and above;
+- the independent U2 external ROM subsystem.
+
+This lets a finished cartridge keep writable settings, saves, or high scores without leaving the cartridge image and mapping open to GROMCFG/FlashCtl modification.
 
 ### Practical use
 
 - Leave JP4 **open** while using GROMCFG to create or modify the cartridge.
-- After final configuration and testing, close JP4 if the GROM Flash and mapping should be locked against ordinary TI-side reconfiguration.
-- Open it again whenever GROMCFG must modify protected content.
+- After final configuration and testing, close JP4 to apply the distribution lock.
+- Open it again whenever protected GROM Flash or mapping must be changed.
 
 ## JP5 — UART
 

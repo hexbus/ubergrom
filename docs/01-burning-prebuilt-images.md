@@ -9,21 +9,20 @@ The board contains two independent programmable devices:
 
 Programming one does not program the other.
 
-## 1. What a complete release should contain
+## 1. Identify the supplied files
 
-The ATmega Flash image is not normally useful on a **blank** ATmega1284P without the accompanying EEPROM configuration: the EEPROM contains the UberGROM map that determines which physical GROM pages and peripherals appear at which logical GROM locations.
+A complete release intended to program a **blank ATmega1284P** must provide both the AVR program Flash and the EEPROM configuration that maps the cartridge content. Typical files are:
 
-For a complete burn-from-blank release, supply the ATmega side in one of these forms:
+| File type | Typical size | Destination |
+|---|---:|---|
+| ATmega Flash-only image | 128 KiB (`>20000`) | ATmega1284P program Flash |
+| ATmega EEPROM image | 4 KiB (`>1000`) | ATmega1284P EEPROM |
+| Combined ATmega image | 132 KiB (`>21000`) | 128 KiB Flash + 4 KiB EEPROM |
+| Cartridge ROM image | usually 512 KiB (`>80000`) | separate U2 ROM flash |
 
-| Packaging | Files | Complete for a blank ATmega? |
-|---|---|---|
-| Combined | one 132 KiB (`>21000`) image | Yes |
-| Separate | one 128 KiB (`>20000`) Flash image **plus** one 4 KiB (`>1000`) EEPROM image | Yes |
-| Flash-only update | one 128 KiB (`>20000`) Flash image | **No**, unless an already-configured EEPROM is intentionally being preserved |
+For blank-chip programming, expect either a **combined 132 KiB ATmega image** or the matching **128 KiB Flash + 4 KiB EEPROM pair**. If the cartridge also uses U2 ROM, its ROM image is supplied in addition. A GROM-only cartridge legitimately has no U2 ROM image.
 
-If the cartridge also uses the separate U2 ROM, add its ROM image (normally 512 KiB / `>80000`). Thus a ROM/GROM release using separate ATmega files commonly contains three files: ATmega Flash, ATmega EEPROM, and U2 ROM.
-
-A GROM-only cartridge legitimately has no U2 ROM image.
+A lone 128 KiB Flash image is not normally a complete blank-chip release because little useful content will be mapped until the EEPROM is configured. Treat Flash-only files as updates for an already configured cartridge unless the release explicitly provides another configuration procedure.
 
 ## 2. Understand the ATmega programmer-buffer layout
 
@@ -74,17 +73,17 @@ When the release supplies the two images separately:
 
 In a programmer with separate Flash and EEPROM tabs/buffers, the equivalent operation is to load the 128 KiB file into Flash at Flash `>00000` and the 4 KiB file into EEPROM at EEPROM `>0000`.
 
-### Flash-only 128 KiB update image
+### Flash-only 128 KiB image
 
-A 128 KiB Flash-only image should be treated as an **update artifact**, not as a complete blank-device cartridge image.
+If only a 128 KiB ATmega Flash file is provided:
 
-Use it when the existing EEPROM mapping/save data is intentionally meant to remain in place:
+- load it at `>00000`;
+- do **not** invent or append 4 KiB of `>FF` bytes;
+- do not program EEPROM unless the release instructions explicitly say to erase or replace it.
 
-- load the Flash image at `>00000`;
-- do not invent or append a 4 KiB EEPROM image;
-- preserve/back up the existing EEPROM before the operation.
+A Flash-only file is useful for updating an already configured cartridge, but it is generally **not sufficient for a blank ATmega1284P**. The matching EEPROM configuration must already exist or be created separately with GROMCFG.
 
-**Important:** with High fuse `D8`, `EESAVE` is unprogrammed, so a normal AVR Chip Erase does **not** preserve EEPROM. Back up the existing 4 KiB EEPROM first, or use a programmer procedure that explicitly preserves/restores it.
+**Important:** with High fuse `D8`, `EESAVE` is unprogrammed, so a normal AVR Chip Erase does **not** preserve EEPROM. Back up the existing 4 KiB EEPROM first, or use a programmer mode that explicitly preserves it.
 
 ## 3. Internal layout of the 128 KiB ATmega Flash image
 
@@ -95,17 +94,15 @@ For the ATmega1284P build used by this board:
 >1E000–>1FFFF     8 KiB: UberGROM firmware / boot section
 ```
 
-This is why a **128 KiB** file contains both cartridge GROM content and Tursi's UberGROM firmware.
+This is why a **128 KiB** file can still contain both cartridge GROM content and Tursi's UberGROM firmware.
 
 The separate 4 KiB EEPROM stores mapping/configuration and can also store application data such as settings or high scores.
 
 ## 4. ATmega1284P fuse settings
 
-### Recommended setting for newly programmed boards
+### Recommended ATmega1284P setting
 
-Tursi recommends keeping brown-out detection enabled on this 5 V TI cartridge design so the AVR does not begin executing while an aging or slow-rising TI power supply is still below a stable operating voltage.
-
-For the ATmega1284P, his recommended setting is:
+For newly programmed ATmega1284P devices, use Tursi's recommended setting:
 
 | Fuse | Byte |
 |---|---:|
@@ -115,25 +112,19 @@ For the ATmega1284P, his recommended setting is:
 
 ![Tursi XGPro fuse example](images/tursi-xgpro-fuses-fc.png)
 
-### Existing/legacy setting used on many boards
+The important difference is brown-out detection. TI power supplies are now decades old and the 5 V rail can be slow or uneven while coming up. `FC` enables the approximately 4.3 V brown-out threshold so the AVR does not begin executing until the supply is in a stable operating range. The AVR still starts well before normal TI cartridge boot processing needs it.
 
-Jon has successfully programmed boards with:
+Jon Guidry has historically used `FF/D8/C2` successfully on existing cartridges:
 
-| Fuse | Byte |
-|---|---:|
-| Extended | `FF` |
-| High | `D8` |
-| Low | `C2` |
+![Historical FF/D8/C2 fuse setting](images/atmega1284p-fuse-settings.png)
 
-![Jon's ATmega1284P fuse settings](images/atmega1284p-fuse-settings.png)
-
-The only difference between `FC/D8/C2` and `FF/D8/C2` is brown-out detection. Existing known-good cartridges do not need to be changed merely because they use `FF`, but **for a newly programmed ATmega1284P this reference recommends `FC/D8/C2`** unless there is a specific reason to disable BOD.
+`FF/D8/C2` is therefore useful historical/reference information, but **`FC/D8/C2` is the recommended setting for new ATmega1284P programming**.
 
 ### Document the fuse *functions*, not only the hex bytes
 
-Raw fuse bytes are ATmega1284P-specific. UberGROM was designed to be portable to suitable AVR targets, so a port to another AVR should reproduce the intended **functions** using that device's own fuse definitions rather than blindly copying these bytes.
+Raw fuse bytes are ATmega1284P-specific. Tursi's firmware was written to be portable to suitable AVR targets, so a port to another AVR must reproduce the intended **functions** using that device's own fuse definitions rather than copying `FF/D8/C2`.
 
-On the ATmega1284P, AVR fuse bits use `0 = programmed` and `1 = unprogrammed`.
+On the ATmega1284P, remember that AVR fuse bits use `0 = programmed` and `1 = unprogrammed`.
 
 #### Low fuse `C2`
 
@@ -168,8 +159,10 @@ Only `BODLEVEL2:0` are implemented:
 
 | Extended byte | BODLEVEL | Meaning |
 |---|---|---|
-| `FC` | `100` | approximately 4.3 V brown-out threshold — **recommended for new boards** |
-| `FF` | `111` | brown-out detector disabled — known to work on existing boards, but not preferred for new burns |
+| `FF` | `111` | brown-out detector disabled |
+| `FC` | `100` | approximately 4.3 V brown-out threshold |
+
+For this board, prefer `FC`: the defined brown-out threshold helps keep the MCU held in reset while an aging TI supply is still rising or has fallen below a reliable operating voltage.
 
 ### Programmer display differences
 
@@ -177,7 +170,7 @@ Different universal programmers may:
 
 - show only implemented extended-fuse bits;
 - mask unused bits;
-- label a checked box as “programmed = 0”; or
+- label a checked box as “programmed = 0”;
 - display the same functional setting with a different visual convention.
 
 Therefore verify the decoded bit functions, then **read the fuses back** after programming.
@@ -195,25 +188,23 @@ If the release supplies a U2 ROM image:
 
 The board's 74LS378 scheme is **non-inverted**. Images built for older inverted 74LS379 cartridge boards may require 8 KiB bank-order conversion, but a release image intended for this board should be programmed as supplied.
 
-After programming and installing U2, keep **JP1 at 1-2 (`+5V / Write Disable`)**. The current cartridge has no supported in-circuit U2 programming path. Because ROM bank selection itself uses TI write cycles in the cartridge address space, U2's write-enable input is intentionally held inactive during normal use; those writes are for the 74LS378 latch, not for programming U2.
+## 6. JP4 when configuring or finalizing a cartridge
 
-## 6. JP4 while configuring and distributing a cartridge
+JP4 is the **ATmega/UberGROM write-protect input**, not a control for U2.
 
-JP4 is the **UberGROM distribution lock** for the protected ATmega-side write paths.
+- **JP4 open:** UberGROM FlashCtl and protected configuration writes are permitted.
+- **JP4 closed:** PC7 is grounded; the released firmware blocks FlashCtl writes and writes to the protected EEPROM configuration region.
 
-- **JP4 open:** GROMCFG/FlashCtl can modify GROM Flash and the protected configuration area.
-- **JP4 closed:** the released firmware blocks FlashCtl programming and protected configuration/mapping EEPROM writes.
+JP4 is the intended **distribution lock** for the UberGROM subsystem. It does not affect the separate U2 ROM or normal user EEPROM/save storage.
 
-Leave it open while creating/testing a cartridge. Once a finished cartridge is ready for distribution, JP4 may be closed to lock its GROM Flash and mapping while still allowing normal user EEPROM/save-data behavior.
-
-See [Hardware reference](05-hardware-reference.md) for the precise scope.
+See [Hardware reference](05-hardware-reference.md) for the exact scope of the protection.
 
 ## 7. First power-on checklist
 
 - Confirm U2 and U3 orientation.
-- Confirm the fuse functions and fuse-byte readback.
+- Confirm the ATmega fuse functions and readback.
 - Confirm JP8 is in its normal closed position.
-- Keep JP4 open if GROMCFG must change GROM Flash or mapping.
+- Keep JP4 open if GROMCFG must change Flash or mapping.
 - If a separate U2 ROM image was supplied, verify U2 independently.
 - Hold **Space** during cold power-up when the UberGROM recovery/GROMCFG path is required.
 
@@ -221,5 +212,5 @@ If a cartridge has GROM but no expected ROM behavior, troubleshoot U2 separately
 
 ## Source references
 
-- ATmega1284P manufacturer documentation: https://www.microchip.com/en-us/product/atmega1284p
+- ATmega1284P datasheet: https://www.microchip.com/en-us/product/atmega1284p
 - UberGROM firmware/software by Mike Brent/Tursi: https://github.com/tursilion/ubergrom
