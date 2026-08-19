@@ -9,13 +9,13 @@ A cartridge can combine:
 - additional independent GROM-resident programs that contribute their own entries to the TI selection screen; and
 - software mapped on additional GROM bases when two programs need the same logical GROM slot.
 
-This chapter explains the distinction between **GROM slots**, **GROM bases**, **physical UberGROM pages**, and the separate **U2 ROM banks**, then shows historical and working examples.
+This chapter separates **GROM slots**, **GROM bases**, **physical UberGROM pages**, and the independent **U2 ROM banks**, then shows a historical TI-era example and a genericized modern launcher pattern.
 
 ## Four address spaces to keep separate
 
 ### GROM slot
 
-Within a GROM base, cartridge GROM space is divided into the familiar 8 KiB logical ranges:
+Within a GROM base, cartridge GROM space is divided into these 8 KiB logical ranges:
 
 ```text
 >6000  >8000  >A000  >C000  >E000
@@ -23,7 +23,7 @@ Within a GROM base, cartridge GROM space is divided into the familiar 8 KiB logi
 
 The first three logical GROM ranges, `>0000`, `>2000`, and `>4000`, are occupied by the console GROMs and are not normal cartridge slots.
 
-A title may have been assembled specifically for one of these logical addresses. Moving its bytes to another slot does **not** automatically relocate absolute GPL/GROM references inside the program.
+A program may have been assembled specifically for one of these logical addresses. Moving its bytes to another slot does **not** automatically relocate absolute GPL/GROM references inside the program.
 
 ### GROM base
 
@@ -50,11 +50,13 @@ The separate 512 KiB U2 device contains sixty-four 8 KiB CPU-ROM banks at `>6000
 
 A GPL/GROM program can therefore act only as a menu/launcher while the application itself executes from U2.
 
-## Historical example: Milton Bradley Games
+## Historical example: Milton Bradley Gamevision Demonstration Cartridge
 
-The Milton Bradley multi-game cartridge is an excellent historical example of several self-contained GROM programs coexisting in one cartridge.
+The **Milton Bradley Gamevision Demonstration Cartridge** (MB 4961) is a particularly useful historical example. It dates from the 1979 TI-99/4 launch period and was intended as an in-store/dealer demonstration cartridge rather than a normal retail release. It showcased Milton Bradley's Gamevision software line and was not widely distributed to consumers.
 
-A reference `mbgamesg.bin` image examined during preparation of this documentation contains valid `>AA` cartridge headers at the following logical GROM slots:
+The demonstration cartridge includes a demo/menu program plus four Gamevision titles that were also distributed as individual cartridges: **Connect Four, Hangman, Yahtzee, and Zero-Zap**.
+
+A reference `mbgamesg.bin` image examined while preparing this documentation contains valid `>AA` cartridge headers at these logical GROM slots:
 
 | Logical GROM slot | Program-list entry |
 |---:|---|
@@ -64,71 +66,71 @@ A reference `mbgamesg.bin` image examined during preparation of this documentati
 | `>C000` | `YAHTZEE` |
 | `>E000` | `ZERO-ZAP` |
 
-The important point is that Connect Four, Hangman, Yahtzee, and Zero-Zap are not merely data files called by one monolithic application. Each image contains its own cartridge header and program-list entry at the logical GROM location for which it was built.
+The key point is that the four games are not merely data files hidden behind one monolithic program. Each has its own cartridge header and program-list entry at the logical GROM location for which it was built.
 
-That means the individual game GROMs can be treated as independent cartridge programs. If the four game GROMs are placed together at their expected slots, the TI can discover four program entries while building the cartridge selection list.
+That means the four individual game GROMs can stand on their own. If those four GROM images are placed together at their expected logical slots, the TI can discover four separate program entries while building the cartridge selection list:
 
-> Historical documentation sometimes loosely refers to `>8000`, `>A000`, and similar addresses as different "GROM bases." In this reference, those are called **GROM slots**. A **GROM base** means the CPU port set at `>9800`, `>9804`, and so on.
+```text
+>8000  CONNECT FOUR
+>A000  HANGMAN
+>C000  YAHTZEE
+>E000  ZERO-ZAP
+```
 
-The Milton Bradley arrangement is useful because it demonstrates the idea without any UberGROM-specific launcher: multiple independent GROM headers can coexist and each can contribute its own menu entry.
+This is an excellent demonstration of **multiple independent GROM programs sharing one cartridge without requiring one master launcher to own every menu entry**.
 
-The proprietary Milton Bradley cartridge image is **not redistributed** with this repository; the layout is documented only as a historical example.
+> Historical discussions sometimes loosely call `>8000`, `>A000`, and similar addresses different "GROM bases." In this reference, those are **GROM slots**. A **GROM base** means the CPU port set beginning at `>9800`, `>9804`, and so on.
+
+The proprietary Gamevision image is **not redistributed** with this repository; only its layout is documented as a historical example.
 
 A source-free header/layout breakdown is included at [`../examples/mb-games-layout/`](../examples/mb-games-layout/).
 
-## Working UberGROM example: one GPL GROM launches two banked-ROM programs
+Historical references:
 
-The Phoenix + Tacticon Chess cartridge provides a tested modern example of a different technique.
+- https://www.videogamehouse.net/gamemain/cartsfh/gamevisiondemo/
+- https://www.ti994.com/1979/cartridges/
 
-The file [`../examples/gpl-multi-program-menu/gromhead.g`](../examples/gpl-multi-program-menu/gromhead.g) is a small dedicated GPL/GROM launcher. It is assembled for logical GROM slot `>8000` and contributes two entries to the TI selection screen:
+## Generic example: one GPL GROM launches two banked-ROM applications
+
+A tested two-application design provides a modern example of a different technique. For publication, the source in [`../examples/gpl-multi-program-menu/`](../examples/gpl-multi-program-menu/) has been genericized so it does not identify the original applications.
+
+The example maps a small GPL launcher at logical GROM slot `>8000`. Its header contributes two TI menu entries and launches the corresponding applications from U2 through a scratchpad-resident bank-switch trampoline.
+
+The public example uses illustrative names and addresses:
 
 ```text
-PHOENIX CHESS
-TACTICON
+ROM APP1  -> bank select >6000 -> ROM entry >6100
+ROM APP2  -> bank select >6002 -> ROM entry >6100
 ```
 
-The corresponding programs live in U2 ROM rather than in the GROM itself:
-
-```text
-PHOENIX CHESS  -> bank select >6000 -> ROM entry >6054
-TACTICON       -> bank select >6058 -> ROM entry >6024
-```
-
-The GPL entry writes the required bank select and ROM entry address into scratchpad. Shared GPL code then creates the following two-instruction TMS9900 trampoline in scratchpad:
+Each GPL menu entry stores the required bank select and ROM entry address in scratchpad. Shared GPL code then constructs:
 
 ```asm
        CLR  @bank_select
        B    @rom_entry
 ```
 
-and transfers control to it with `XML >F0`.
+and transfers control to that scratchpad sequence with `XML >F0`.
 
-Because the actual bank-select write executes from scratchpad rather than from U2 ROM, the complete `>6000–>7FFF` cartridge window can change safely.
+Because the bank-select write executes from scratchpad rather than from U2 ROM, the complete `>6000–>7FFF` cartridge window can change safely.
 
-This is a practical pattern for a cartridge that contains several CPU-ROM applications: a very small GROM can provide the TI menu while U2 stores the much larger programs.
+This is a practical pattern for a cartridge containing several CPU-ROM applications: a very small GROM can provide the TI menu while U2 stores the larger programs.
 
-## Adding an independent GROM title to the Chess launcher
+## Add an independent GROM program without adding it to the GPL menu
 
-The Chess launcher does not have to know about every program in the cartridge.
+The GPL launcher does not have to know about every program on the cartridge.
 
-For example, Hangman is historically associated with logical GROM slot `>A000`. It can coexist with the Chess launcher at `>8000` while U2 contains Phoenix and Tacticon:
+A separate self-contained GROM program may occupy another compatible logical GROM slot and contribute its own menu entry without being added to the `>8000` GPL program list:
 
-| GROM base | Logical slot / U2 resource | Contents | Menu entries |
+| GROM base | Logical slot / resource | Contents | Menu entries |
 |---:|---:|---|---|
-| base 0 (`>9800`) | GROM `>8000` | Chess GPL launcher | `PHOENIX CHESS`, `TACTICON` |
-| base 0 (`>9800`) | GROM `>A000` | Hangman GROM image | `HANGMAN` |
-| separate U2 | banks 0–43 | Phoenix ROM | launched by Chess GPL |
-| separate U2 | banks 44–51 | Tacticon ROM | launched by Chess GPL |
+| base 0 (`>9800`) | GROM `>8000` | GPL multi-ROM launcher | two U2 applications |
+| base 0 (`>9800`) | GROM `>A000` | independent GROM image | its own program entry |
+| separate U2 | assigned banks | application ROM code | launched by the GPL entries |
 
-The resulting TI selection screen can therefore contain three choices even though the cartridge uses two different storage technologies:
+The TI selection screen can therefore contain three choices even though the `>8000` launcher itself contains only two program-list entries.
 
-```text
-PHOENIX CHESS
-TACTICON
-HANGMAN
-```
-
-The key architectural idea is that **the TI builds the selection list from the cartridge headers it discovers**. A separate GROM program can contribute its own menu entry; it does not need to be manually added to the Chess launcher's program list.
+The architectural idea is simple: **the TI builds the selection list from the cartridge headers it discovers**. An independent GROM program contributes its own program entry; it does not have to be inserted into another GROM's program list.
 
 ## Same base, different slots versus different GROM bases
 
@@ -136,7 +138,7 @@ There are two useful ways to combine independent GROM programs.
 
 ### Different slots in the same base
 
-This is the Milton Bradley style:
+The Gamevision demonstration cartridge illustrates this approach:
 
 ```text
 base 0
@@ -146,7 +148,7 @@ base 0
   >E000  ZERO-ZAP
 ```
 
-It works well when each program already expects a different logical GROM slot or has been properly relocated for that slot.
+It works well when each program already expects a different logical GROM slot or has been correctly relocated for that slot.
 
 ### Same slot on different bases
 
@@ -157,7 +159,7 @@ base 0 / >6000  program A
 base 1 / >6000  program B
 ```
 
-This can avoid changing the program's internal GROM address layout. It still must be tested, however, because software may make assumptions about the GROM base or directly access particular GROM CPU ports.
+This can avoid changing the program's internal GROM address layout. It still must be tested because software may make assumptions about the GROM base or directly access particular GROM CPU ports.
 
 ## Compatibility is not automatic
 
@@ -168,11 +170,11 @@ Potential incompatibilities include:
 - absolute GPL/GROM addresses that assume a particular logical slot such as `>6000`;
 - code that directly accesses a particular GROM CPU base rather than using the environment established by the console;
 - self-modifying or unusual GROM-address logic;
-- ROM/GROM cartridges that also require CPU ROM at `>6000–>7FFF`;
+- GROM+ROM cartridges that also require CPU ROM at `>6000–>7FFF`;
 - titles that depend on a particular ROM mapper or ROM bank state; and
 - interactions that appear only after `QUIT`, warm reset, or returning from another program.
 
-Some titles have been reported by users as less tolerant of relocation than others. Treat such reports as a reason to test, not as a compatibility guarantee or permanent blacklist.
+Community experience suggests that many GROM-only titles are tolerant of alternate locations, while some are not. Treat that as a reason to experiment and record results rather than as a compatibility guarantee.
 
 For an existing cartridge image, prefer this order:
 
@@ -206,8 +208,8 @@ A mixed cartridge might be planned as:
 
 | GROM base | Slot | Device | Physical page | Purpose |
 |---:|---:|---|---:|---|
-| base 0 (`>9800`) | `>8000` | GROM | page 0 | Chess GPL launcher |
-| base 0 (`>9800`) | `>A000` | GROM | page 1 | independent GROM title |
+| base 0 (`>9800`) | `>8000` | GROM | page 0 | GPL multi-ROM launcher |
+| base 0 (`>9800`) | `>A000` | GROM | page 1 | independent GROM program |
 | base 15 (`>983C`) | `>A000` | UART | — | optional serial interface |
 | base 15 (`>983C`) | `>E000` | FlashCtl | — | development/configuration only |
 
@@ -216,6 +218,7 @@ The exact physical page numbers are arbitrary; what matters is that the intended
 ## Related examples and references
 
 - [GPL multi-program / banked-ROM launcher](../examples/gpl-multi-program-menu/)
+- [Historical Gamevision GROM layout](../examples/mb-games-layout/)
 - [Programming with GROMCFG](02-programming-with-gromcfg.md)
 - [512 KiB ROM bank switching](03-rom-bank-switching.md)
 - [UberGROM extended features](04-extended-features.md)

@@ -89,20 +89,20 @@ The contributed source is included; historical magazine scans are not redistribu
 
 ## 2026-08-19: GPL multi-program cartridge example
 
-- Added the tested Phoenix/Tacticon `gromhead.g` launcher and assembled output as a documented example.
+- Added a genericized GPL multi-ROM launcher derived from a tested two-application implementation, plus a matching generic raw GROM block.
 - Documented the distinction between GROM base, logical GROM slot, and physical UberGROM Flash page.
-- Added a concrete three-choice layout: a GROM-only program at base 0 / `>6000`, plus the Chess GPL launcher at base 0 / `>8000`, with Phoenix and Tacticon executing from U2 ROM.
+- Added a concrete mixed-layout example: a GPL launcher at base 0 / `>8000` contributes two U2 application entries while an independent GROM program contributes another entry from a separate slot.
 - Documented that independent GROM headers can contribute additional cartridge selection-list entries.
 - Added multiple-base placement as an option when two existing GROM images expect the same logical slot, with the warning that mapping does not relocate embedded GPL/GROM addresses.
 
 ## 2026-08-19: Multi-program GROM/ROM documentation
 
 - Added a dedicated multi-program-cartridge chapter explaining the difference between GROM slots, GROM bases, physical UberGROM pages, and U2 ROM banks.
-- Added a historical Milton Bradley case study. The reference image examined for documentation contains independent `>AA` cartridge headers/program entries for MILTON BRADLEY GAMES at `>6000`, CONNECT FOUR at `>8000`, HANGMAN at `>A000`, YAHTZEE at `>C000`, and ZERO-ZAP at `>E000`.
+- Added a historical case study for the 1979 Milton Bradley Gamevision Demonstration Cartridge, an in-store/dealer demonstration cartridge rather than a normal retail multi-game release. The reference image contains independent `>AA` headers/program entries for MILTON BRADLEY GAMES at `>6000`, CONNECT FOUR at `>8000`, HANGMAN at `>A000`, YAHTZEE at `>C000`, and ZERO-ZAP at `>E000`.
 - Kept the proprietary Milton Bradley image out of the documentation package; only the verified layout is described.
-- Expanded the tested Phoenix/Tacticon `gromhead.g` example into a reusable design explanation for a dedicated GPL menu GROM that launches multiple U2 ROM applications through a scratchpad trampoline.
+- Expanded the tested two-application GPL launcher technique into a publication-safe generic example of a dedicated GPL menu GROM launching multiple U2 ROM applications through a scratchpad trampoline.
 - Explicitly distinguished the tested GPL program-list launcher from the still-unverified GPL power-up-link example.
-- Added an example of combining the Chess GPL launcher with a separate self-contained GROM title so the TI selection screen can contain ROM-backed and GROM-backed programs at the same time.
+- Added an example of combining the GPL multi-ROM launcher with a separate self-contained GROM program so the TI selection screen can contain ROM-backed and GROM-backed programs at the same time.
 - Added compatibility guidance: moving to another logical GROM slot, moving to another GROM base, and reproducing a GROM+ROM cartridge are different operations and must be tested separately.
 - Added a collection-wide compatibility-test matrix template for future systematic testing.
 - Added placeholders for requested future community examples: user EEPROM/high-score storage and an UberHDX UART/serial example. These are clearly marked as requested, not yet included.

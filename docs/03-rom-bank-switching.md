@@ -146,15 +146,15 @@ Two related patterns are useful:
 1. a **GPL power-up link** can select a known ROM bank during the console's startup scan; and
 2. a **GPL program-list entry** can launch a particular banked-ROM application when the user selects it from the TI menu.
 
-The second pattern is demonstrated by the tested Phoenix + Tacticon Chess launcher in [`../examples/gpl-multi-program-menu/`](../examples/gpl-multi-program-menu/).
+The second pattern is demonstrated by the genericized two-application launcher in [`../examples/gpl-multi-program-menu/`](../examples/gpl-multi-program-menu/). The launcher technique was validated in a working cartridge; the public example deliberately uses generic application names and sample U2 addresses.
 
-### Tested Chess GPL launcher
+### GPL multi-ROM launcher
 
-The launcher is assembled into logical GROM slot `>8000`. Its GROM cartridge header contributes two menu entries:
+The example is assembled into logical GROM slot `>8000`. Its GROM cartridge header contributes two menu entries:
 
 ```text
-PHOENIX CHESS  -> bank select >6000 -> ROM entry >6054
-TACTICON       -> bank select >6058 -> ROM entry >6024
+ROM APP1  -> bank select >6000 -> ROM entry >6100
+ROM APP2  -> bank select >6002 -> ROM entry >6100
 ```
 
 Each GPL menu entry stores the selected bank address and ROM entry point into scratchpad. Shared GPL code then creates this TMS9900 sequence in scratchpad:
@@ -166,21 +166,21 @@ Each GPL menu entry stores the selected bank address and ROM entry point into sc
 
 and invokes it with `XML >F0`. The bank-select write therefore executes outside the U2 cartridge window, so switching the complete `>6000–>7FFF` ROM window is safe.
 
-This is a useful general design: one small GROM header/menu can launch many independent ROM-resident programs as long as each entry knows the correct U2 bank select and entry address.
+The checked-in values are illustrative. A real cartridge substitutes the bank select and CPU entry address required by each U2 application.
 
 ### Mix ROM-resident and GROM-resident programs on one cartridge
 
 The GPL launcher does not have to own every menu entry on the cartridge. Other mapped GROMs can contain their own standard cartridge headers and program lists.
 
-For example, a three-program cartridge can be arranged as:
+For example, a three-choice cartridge can be arranged as:
 
-| GROM base | GROM slot | Contents | Selection-list contribution |
+| GROM base | GROM slot / resource | Contents | Selection-list contribution |
 |---:|---:|---|---|
-| base 0 (`>9800`) | `>6000` | GROM-only title such as Hangman | one GROM program entry |
-| base 0 (`>9800`) | `>8000` | Chess GPL launcher | Phoenix Chess + Tacticon |
-| U2 | banks as assigned | Phoenix + Tacticon ROM code | launched by the GPL entries |
+| base 0 (`>9800`) | `>8000` | GPL multi-ROM launcher | two U2 application entries |
+| base 0 (`>9800`) | `>A000` | independent GROM program | one independent GROM entry |
+| U2 | banks as assigned | ROM application code | launched by the GPL entries |
 
-The TI scans cartridge GROM locations while building its selection list, so the separate GROM header can contribute its own program entry in addition to the two entries supplied by the Chess launcher. The physical result is one cartridge offering a mixture of GROM and bank-switched ROM software.
+The TI scans cartridge GROM locations while building its selection list, so the separate GROM header can contribute its own program entry in addition to the entries supplied by the GPL launcher. The physical result is one cartridge offering a mixture of GROM and bank-switched ROM software.
 
 Keep the terminology straight:
 
@@ -192,9 +192,9 @@ The physical page number does not need to match the logical slot.
 
 If two existing GROM programs both expect the same logical slot, UberGROM's multiple-base support can also be used to place them at the same slot on different GROM bases. Mapping is not relocation, however: moving an existing image from `>6000` to `>A000` does not rewrite any absolute GPL/GROM addresses embedded in that image.
 
-See [`../examples/gpl-multi-program-menu/README.md`](../examples/gpl-multi-program-menu/README.md) for the complete working Chess source and example mappings.
+See [`../examples/gpl-multi-program-menu/README.md`](../examples/gpl-multi-program-menu/README.md) for the generic launcher source and example mappings.
 
-For a broader explanation of combining ROM-resident programs with independent GROM cartridges, including the historical Milton Bradley multi-GROM layout and compatibility caveats, see [Building multi-program UberGROM cartridges](06-multi-program-cartridges.md).
+For a broader explanation of combining ROM-resident programs with independent GROM cartridges, including the historical 1979 Milton Bradley Gamevision Demonstration Cartridge layout and compatibility caveats, see [Building multi-program UberGROM cartridges](06-multi-program-cartridges.md).
 
 ## QUIT does not reset the 74LS378
 

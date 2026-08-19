@@ -99,9 +99,9 @@ GROMCFG does not infer the header. If told that the six-byte header exists, it s
 
 UberGROM can combine program-list entries from independent GROM images while the separate U2 ROM supplies bank-switched application code.
 
-The tested Phoenix + Tacticon Chess example maps a small GPL launcher at logical GROM slot `>8000`. That header contributes two TI menu entries and launches the corresponding applications from U2 through a scratchpad bank-switch trampoline. A separate self-contained GROM program may occupy another logical slot and contribute its own menu entry without being added to the Chess GPL program list.
+A tested two-application design maps a small GPL launcher at logical GROM slot `>8000`. That header contributes two TI menu entries and launches the corresponding applications from U2 through a scratchpad-resident bank-switch trampoline. A separate self-contained GROM program may occupy another logical GROM slot—or another GROM base—and contribute its own menu entry without being added to the `>8000` GPL program list.
 
-This is the same broad cartridge-selection principle seen historically in the Milton Bradley multi-game arrangement, where independent cartridge headers occupy logical slots such as `>8000`, `>A000`, `>C000`, and `>E000`.
+This is the same broad cartridge-selection principle seen historically in the **1979 Milton Bradley Gamevision Demonstration Cartridge**, where independently headed programs occupy logical slots such as `>8000`, `>A000`, `>C000`, and `>E000`.
 
 Do not confuse **slot**, **base**, and **physical page**:
 
@@ -111,9 +111,9 @@ Do not confuse **slot**, **base**, and **physical page**:
 
 Mapping is not relocation. An existing program may contain absolute GROM addresses or base-specific assumptions, so every combined cartridge should be tested.
 
-See [Building multi-program UberGROM cartridges](06-multi-program-cartridges.md) for the Milton Bradley case study, the working Chess GPL launcher, multi-base layouts, and a compatibility-test matrix.
+See [Building multi-program UberGROM cartridges](06-multi-program-cartridges.md) for the Gamevision case study, the genericized GPL multi-ROM launcher, multi-base layouts, and a compatibility-test matrix.
 
-Working launcher source: [`../examples/gpl-multi-program-menu/`](../examples/gpl-multi-program-menu/)
+Launcher source: [`../examples/gpl-multi-program-menu/`](../examples/gpl-multi-program-menu/)
 
 ## EEPROM and mapping data
 

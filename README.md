@@ -109,6 +109,6 @@ Also remember that **QUIT is a software reset and does not reset the ROM latch**
 
 ## Multi-program cartridges
 
-A working Phoenix + Tacticon GPL launcher demonstrates how one GROM header can contribute multiple menu entries that launch different banked programs in U2, while other mapped GROMs can independently contribute additional menu entries. The historical Milton Bradley multi-game cartridge provides a complementary example of several self-contained GROM programs occupying different logical GROM slots.
+A genericized launcher derived from a tested two-application implementation demonstrates how one GPL/GROM header can contribute multiple menu entries that launch different banked applications in U2, while other mapped GROMs independently contribute additional menu entries. The 1979 **Milton Bradley Gamevision Demonstration Cartridge** provides a complementary historical example: its demo/menu and independently headed Gamevision titles occupy several logical GROM slots on one cartridge.
 
 See [Building multi-program UberGROM cartridges](docs/06-multi-program-cartridges.md) and [`examples/gpl-multi-program-menu/`](examples/gpl-multi-program-menu/).
