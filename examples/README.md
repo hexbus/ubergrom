@@ -24,3 +24,12 @@ When adding an example:
 - state any external library or hardware requirements;
 - distinguish historical application-specific code from a minimal interface example;
 - do not copy or modify Tursi's UberGROM firmware source into this repository without respecting its upstream license.
+
+## Examples requested / not yet included
+
+Additional community examples have been requested but should not be documented as available until working source is contributed and reviewed:
+
+- a practical **user EEPROM save/high-score** example showing persistent application storage without touching the protected mapping/configuration area; and
+- an **UberHDX serial/UART** application example showing another real-world use of the UART interface.
+
+When these are contributed, preserve the original author's source and attribution and document the required UberGROM base/slot mapping alongside the example.

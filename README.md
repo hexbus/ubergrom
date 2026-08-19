@@ -27,7 +27,8 @@ The cartridge hardware was a collaborative project involving **James "Jim" Fetzn
 | Load or construct GROM content on a TI using GROMCFG | [Programming with GROMCFG](docs/02-programming-with-gromcfg.md) |
 | Build a 16 KiB–512 KiB bank-switched ROM program | [ROM bank switching](docs/03-rom-bank-switching.md) |
 | Use UART, GPIO, ADC, timer, RAM, EEPROM, or FlashCtl | [Extended features](docs/04-extended-features.md) |
-| See contributed UART and ADC application examples | [Examples](examples/README.md) |
+| Build a cartridge containing several independent GROM and/or ROM programs | [Multi-program cartridges](docs/06-multi-program-cartridges.md) |
+| See contributed GPL, UART, and ADC application examples | [Examples](examples/README.md) |
 | Identify jumpers, ISP pins, and board subsystems | [Hardware reference](docs/05-hardware-reference.md) |
 | Review open questions and resolved corrections | [Validation ledger](docs/VALIDATION-LEDGER.md) |
 
@@ -104,3 +105,10 @@ Also remember that **QUIT is a software reset and does not reset the ROM latch**
 - Banked-cartridge conventions: https://forums.atariage.com/topic/364796-code-conventions-for-bank-switched-cartridges/
 - Bank-image construction help: https://forums.atariage.com/topic/326457-bank-switch-cartridge-files-help/
 - ATmega1284P manufacturer documentation: https://www.microchip.com/en-us/product/atmega1284p
+
+
+## Multi-program cartridges
+
+A working Phoenix + Tacticon GPL launcher demonstrates how one GROM header can contribute multiple menu entries that launch different banked programs in U2, while other mapped GROMs can independently contribute additional menu entries. The historical Milton Bradley multi-game cartridge provides a complementary example of several self-contained GROM programs occupying different logical GROM slots.
+
+See [Building multi-program UberGROM cartridges](docs/06-multi-program-cartridges.md) and [`examples/gpl-multi-program-menu/`](examples/gpl-multi-program-menu/).

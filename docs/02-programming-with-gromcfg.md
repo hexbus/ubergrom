@@ -95,6 +95,26 @@ For executable cartridge GROMs, `>AA` is commonly visible in the cartridge heade
 
 GROMCFG does not infer the header. If told that the six-byte header exists, it skips those six bytes before loading. A wrong answer shifts the entire GROM image.
 
+## Example: one cartridge with several programs
+
+UberGROM can combine program-list entries from independent GROM images while the separate U2 ROM supplies bank-switched application code.
+
+The tested Phoenix + Tacticon Chess example maps a small GPL launcher at logical GROM slot `>8000`. That header contributes two TI menu entries and launches the corresponding applications from U2 through a scratchpad bank-switch trampoline. A separate self-contained GROM program may occupy another logical slot and contribute its own menu entry without being added to the Chess GPL program list.
+
+This is the same broad cartridge-selection principle seen historically in the Milton Bradley multi-game arrangement, where independent cartridge headers occupy logical slots such as `>8000`, `>A000`, `>C000`, and `>E000`.
+
+Do not confuse **slot**, **base**, and **physical page**:
+
+- `>6000`, `>8000`, `>A000`, `>C000`, and `>E000` are logical GROM **slots**;
+- `>9800`, `>9804`, ... identify GROM **bases**; and
+- GROMCFG maps one of the ATmega's physical GROM Flash pages into a selected base/slot.
+
+Mapping is not relocation. An existing program may contain absolute GROM addresses or base-specific assumptions, so every combined cartridge should be tested.
+
+See [Building multi-program UberGROM cartridges](06-multi-program-cartridges.md) for the Milton Bradley case study, the working Chess GPL launcher, multi-base layouts, and a compatibility-test matrix.
+
+Working launcher source: [`../examples/gpl-multi-program-menu/`](../examples/gpl-multi-program-menu/)
+
 ## EEPROM and mapping data
 
 The ATmega1284P has 4 KiB of EEPROM. The protected low portion contains UberGROM configuration/mapping; the remaining EEPROM is available for application storage.

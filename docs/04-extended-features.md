@@ -227,6 +227,8 @@ Tim (InsaneMultitasker) contributed a 2019 TELCO patch that shows a useful termi
 
 That last step is particularly useful for terminal software: move incoming serial data out of the UberGROM receive buffer quickly, then let the display/keyboard processing consume the larger RAM buffer at its own pace. See [`examples/uart-telco-tim`](../examples/uart-telco-tim/).
 
+A contributed UberHDX-oriented UART example has also been requested for the repository. Do not treat it as available until source is received and reviewed.
+
 ## Timer
 
 Map the timer with `>70`.
@@ -264,6 +266,8 @@ JP4 does **not** lock all EEPROM.
 When JP4 is closed, the firmware rejects persistent EEPROM writes to addresses below `>0102`, protecting the mapping/configuration area. User EEPROM beginning at `>0102` remains writable.
 
 The software configuration interface has its own unlock sequence as well; JP4 is an additional hardware gate for the protected portion.
+
+A small application-level EEPROM/high-score example has been requested for the repository. The intended use is ordinary user EEPROM beginning at `>0102`, not the protected mapping/configuration area. Until a contributed example is tested, use Tursi's upstream `gromtest` as the executable reference for EEPROM access.
 
 ## Flash controller (FlashCtl)
 

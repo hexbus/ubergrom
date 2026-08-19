@@ -86,3 +86,23 @@ The contributed source is included; historical magazine scans are not redistribu
 - Flash endurance remains approximately 10,000 erase cycles.
 - Timer wording notes that it is based on the internal oscillator but that AVR devices are factory calibrated and should normally be reasonably close.
 - FlashCtl is documented as appropriate for configuration, testing, and infrequent updates rather than as a disposable-development-only feature.
+
+## 2026-08-19: GPL multi-program cartridge example
+
+- Added the tested Phoenix/Tacticon `gromhead.g` launcher and assembled output as a documented example.
+- Documented the distinction between GROM base, logical GROM slot, and physical UberGROM Flash page.
+- Added a concrete three-choice layout: a GROM-only program at base 0 / `>6000`, plus the Chess GPL launcher at base 0 / `>8000`, with Phoenix and Tacticon executing from U2 ROM.
+- Documented that independent GROM headers can contribute additional cartridge selection-list entries.
+- Added multiple-base placement as an option when two existing GROM images expect the same logical slot, with the warning that mapping does not relocate embedded GPL/GROM addresses.
+
+## 2026-08-19: Multi-program GROM/ROM documentation
+
+- Added a dedicated multi-program-cartridge chapter explaining the difference between GROM slots, GROM bases, physical UberGROM pages, and U2 ROM banks.
+- Added a historical Milton Bradley case study. The reference image examined for documentation contains independent `>AA` cartridge headers/program entries for MILTON BRADLEY GAMES at `>6000`, CONNECT FOUR at `>8000`, HANGMAN at `>A000`, YAHTZEE at `>C000`, and ZERO-ZAP at `>E000`.
+- Kept the proprietary Milton Bradley image out of the documentation package; only the verified layout is described.
+- Expanded the tested Phoenix/Tacticon `gromhead.g` example into a reusable design explanation for a dedicated GPL menu GROM that launches multiple U2 ROM applications through a scratchpad trampoline.
+- Explicitly distinguished the tested GPL program-list launcher from the still-unverified GPL power-up-link example.
+- Added an example of combining the Chess GPL launcher with a separate self-contained GROM title so the TI selection screen can contain ROM-backed and GROM-backed programs at the same time.
+- Added compatibility guidance: moving to another logical GROM slot, moving to another GROM base, and reproducing a GROM+ROM cartridge are different operations and must be tested separately.
+- Added a collection-wide compatibility-test matrix template for future systematic testing.
+- Added placeholders for requested future community examples: user EEPROM/high-score storage and an UberHDX UART/serial example. These are clearly marked as requested, not yet included.
